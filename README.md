@@ -1,5 +1,5 @@
 # Pigeoff
-Project for the IoT course at Sapienza
+THE Urban Pigeon Deterrant System
 
 # LinkedIn Profiles 
 [Anja Škrlj](www.linkedin.com/in/anja-škrlj-13aa852a1)
