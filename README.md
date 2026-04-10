@@ -8,4 +8,4 @@ THE Urban Pigeon Deterrant System
 
 # Project presentations
 [1st Deliverable](PigeOFF_presentation.pdf)
-[2nd Deliverable](2nd Deliverable.pdf)
+[2nd Deliverable](2nd_Deliverable.pdf)
