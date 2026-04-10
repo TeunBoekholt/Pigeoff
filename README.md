@@ -6,5 +6,6 @@ THE Urban Pigeon Deterrant System
 [Filippo Zanei](https://www.linkedin.com/in/filippozanei/)
 [Teun Boekholt](https://www.linkedin.com/in/teun-boekholt-a41205255/)
 
-# Project presentation
-[Presentation](PigeOFF_presentation.pdf)
+# Project presentations
+[1st Deliverable](PigeOFF_presentation.pdf)
+[2nd Deliverable](2nd Deliverable.pdf)
