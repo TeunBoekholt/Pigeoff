@@ -21,26 +21,22 @@
 /*
 
 Schedule downlink (FPort 1)
-
+NOTE: if you want dowlink to put device to sleep, use this payload format and command:
 Payload Type: Bytes
   Byte 0: 0x5A (magic number) 
    - Why 0x5A? 0x5A is a nice binary number, '0101 1010', 
      and it's easy to recognize.
-
   Byte 1: Command 
   Byte 2-5: Value
 
 Commands:
   0x01: Set sleep time
   0x02: Set send delay
-
 Example:
 0x5A 0x01 0x00 0x01 0xD4 0xC0 -> Set sleep time to 120000ms (2 minutes)
-
-The values are in big-endian format and represent a 32-bit unsigned integer.
-They are permanently stored in the device's non-volatile memory.
-
 */
+
+bool sendImage = false;
 
 
 /**
@@ -61,13 +57,14 @@ void prepareTxFrame(uint8_t port)
     delay(loRaWANHandler.getSendDelay());
   }
 
-  uint8_t sentInt = (uint8_t)7;
-
-  appDataSize = 4;
-  appData[0] = 0xA5; // preamble
-  appData[1] = 0x01; // status
-  appData[2] = sentInt; // sent data
-  appData[3] = crc8_le(0, appData, appDataSize - 1); // crc 8 LE
+  if (!sendImage) {
+    uint8_t sentInt = (uint8_t)7; // TODO test value - to be replaced by sensor data
+    appDataSize = 1;
+    appData[0] = sentInt;
+    }
+  else {
+    // TODO - if the image is larger than 255 bytes, we need to split it into multiple frames
+  }
 }
 
 /**
