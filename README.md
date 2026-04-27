@@ -2,7 +2,7 @@
 
 # Team members & LinkedIn profiles 
 
-|||
+||||
 |---|---|
 | **Name** | **Matricola** | **LinkedIn** |
 | Anja Škrlj | 2285543 | [link](www.linkedin.com/in/anja-škrlj-13aa852a1) |
@@ -11,7 +11,7 @@
 
 # Project presentations
 
-|||
+||||
 |---|---|
 | **Name** | **Date** | **Presentation** |
 | 1st Deliverable | --/--/---- | [link](PigeOFF_presentation.pdf) |
