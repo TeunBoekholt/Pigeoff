@@ -5,9 +5,9 @@
 |||
 |---|---|
 | **Name** | **Matricola** | **LinkedIn** |
-| Anja Škrlj|  | [link](www.linkedin.com/in/anja-škrlj-13aa852a1) |
-| Filippo Zanei | [link](https://www.linkedin.com/in/filippozanei/) | 
-| Teun Boekholt | [link](https://www.linkedin.com/in/teun-boekholt-a41205255/) | 
+| Anja Škrlj | 2285543 | [link](www.linkedin.com/in/anja-škrlj-13aa852a1) |
+| Filippo Zanei | | [link](https://www.linkedin.com/in/filippozanei/) | 
+| Teun Boekholt | | [link](https://www.linkedin.com/in/teun-boekholt-a41205255/) | 
 
 # Project presentations
 
