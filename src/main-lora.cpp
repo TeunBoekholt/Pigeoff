@@ -38,6 +38,24 @@ Example:
 
 bool sendImage = false;
 volatile float latestRadarValue = 0.0;
+volatile bool g_event_triggered = false;
+volatile uint32_t last_interrupt_time = 0;
+
+#define TRIGGER_PIN 26
+#define THRESHOLD 200
+#define RADAR_DELAY 2000
+#define PIN_INCOMING_TRIGGER 27  // Pin connected to the other board
+#define DEBOUNCE_TIME 500        // Prevent double-triggers (ms)
+
+void IRAM_ATTR handleTriggerISR() {
+    uint32_t interrupt_time = millis();
+    
+    // Simple debounce logic to prevent noise from triggering multiple messages
+    if (interrupt_time - last_interrupt_time > DEBOUNCE_TIME) {
+        g_event_triggered = true;
+    }
+    last_interrupt_time = interrupt_time;
+}
 
 /**
  * @brief Prepares the transmission frame for LoRaWAN.
@@ -63,31 +81,27 @@ void prepareTxFrame(uint8_t port)
     appData[0] = sentInt;
     }
   else {
-    // TODO - if the image is larger than 255 bytes, we need to split it into multiple frames
+    // Image sending is not supported.}
   }
 }
+
+#define TRIGGER_PIN 26
+#define THRESHOLD 200
 
 void radarTask(void * parameter) {
-  for(;;) { // Infinite loop for the task
-    // --- REPLACE WITH YOUR ACTUAL RADAR CODE ---
-  // NOTE: we do not have an actual radar, so we simulate it with a sine wave.
-  // In a real implementation, replace this with actual radar reading code.
-    float reading = 127 + 100 * sin(2 * PI * (millis() / 1000.0)); // Simulated radar signal
-    
-    // Update the shared variable
+  pinMode(TRIGGER_PIN, OUTPUT);
+  
+  for(;;) {
+    float reading = analogRead(34); 
     latestRadarValue = reading;
 
-    ALOG_D("Radar Sampled: %f", reading);
+    boolean trigger = (reading > THRESHOLD);
+    digitalWrite(TRIGGER_PIN, trigger ? HIGH : LOW);
 
-    // If the radar reading is above a certain threshold,communicate by cable to other board
-    if (reading > 200) {
-      //TODO
-    }
-
-    // Don't starve the CPU - wait 2000 ms between samples
-    vTaskDelay(2000 / portTICK_PERIOD_MS); 
+    vTaskDelay(RADAR_DELAY / portTICK_PERIOD_MS); 
   }
 }
+
 
 /**
  * @brief Initializes the LoRaWAN handler.
@@ -96,7 +110,11 @@ void radarTask(void * parameter) {
  * of the loRaWANHander object during the initialization phase.
  */
 void setup() {
+  pinMode(TRIGGER_PIN, OUTPUT);
+  pinMode(PIN_INCOMING_TRIGGER, INPUT_PULLDOWN);
   loRaWANHandler.setup();
+  
+  attachInterrupt(digitalPinToInterrupt(PIN_INCOMING_TRIGGER), handleTriggerISR, RISING);
 
   // Create the task
   xTaskCreatePinnedToCore(
@@ -121,4 +139,18 @@ void setup() {
 void loop()
 {
   loRaWANHandler.loop();
+
+  if (g_event_triggered) {
+        ALOG_I("External hardware trigger detected! Initiating LoRa Uplink...");
+        
+        // Reset the flag
+        g_event_triggered = false;
+
+        // Force a LoRaWAN transmission
+        // Note: The specific function name depends on your LoRaWAN library
+        // usually loRaWANHandler.send() or similar.
+        prepareTxFrame(1); // Prepare the frame on the desired port (e.g., 1)
+        
+
+    }
 }

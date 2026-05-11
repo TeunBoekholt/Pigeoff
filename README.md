@@ -1,6 +1,6 @@
 # PigeOff: an Urban Pigeon Deterrent System
 
-# Team members & LinkedIn profiles 
+## Team members & LinkedIn profiles 
 
 ||||
 |---|---|---|
@@ -9,7 +9,7 @@
 | Filippo Zanei | 000000 | [link](https://www.linkedin.com/in/filippozanei/) | 
 | Teun Boekholt | 000000 | [link](https://www.linkedin.com/in/teun-boekholt-a41205255/) | 
 
-# Project presentations
+## Project presentations
 
 ||||
 |---|---|---|
