@@ -70,19 +70,24 @@ void prepareTxFrame(uint8_t port)
 void radarTask(void * parameter) {
   for(;;) { // Infinite loop for the task
     // --- REPLACE WITH YOUR ACTUAL RADAR CODE ---
-    // Example: Reading an analog pin or UART
-    float reading = analogRead(34); 
+  // NOTE: we do not have an actual radar, so we simulate it with a sine wave.
+  // In a real implementation, replace this with actual radar reading code.
+    float reading = 127 + 100 * sin(2 * PI * (millis() / 1000.0)); // Simulated radar signal
     
     // Update the shared variable
     latestRadarValue = reading;
 
     ALOG_D("Radar Sampled: %f", reading);
 
-    // Don't starve the CPU - wait 100ms between samples
-    vTaskDelay(100 / portTICK_PERIOD_MS); 
+    // If the radar reading is above a certain threshold,communicate by cable to other board
+    if (reading > 200) {
+      //TODO
+    }
+
+    // Don't starve the CPU - wait 2000 ms between samples
+    vTaskDelay(2000 / portTICK_PERIOD_MS); 
   }
 }
-
 
 /**
  * @brief Initializes the LoRaWAN handler.
@@ -105,7 +110,6 @@ void setup() {
   );
 }
   
-
 
 /**
  * @brief Continuously handles LoRaWAN events and maintains the connection.
