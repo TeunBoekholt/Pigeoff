@@ -150,7 +150,5 @@ void loop()
         // Note: The specific function name depends on your LoRaWAN library
         // usually loRaWANHandler.send() or similar.
         prepareTxFrame(1); // Prepare the frame on the desired port (e.g., 1)
-        
-
     }
 }
