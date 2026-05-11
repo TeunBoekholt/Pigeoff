@@ -37,7 +37,7 @@ Example:
 */
 
 bool sendImage = false;
-
+volatile float latestRadarValue = 0.0;
 
 /**
  * @brief Prepares the transmission frame for LoRaWAN.
@@ -67,16 +67,45 @@ void prepareTxFrame(uint8_t port)
   }
 }
 
+void radarTask(void * parameter) {
+  for(;;) { // Infinite loop for the task
+    // --- REPLACE WITH YOUR ACTUAL RADAR CODE ---
+    // Example: Reading an analog pin or UART
+    float reading = analogRead(34); 
+    
+    // Update the shared variable
+    latestRadarValue = reading;
+
+    ALOG_D("Radar Sampled: %f", reading);
+
+    // Don't starve the CPU - wait 100ms between samples
+    vTaskDelay(100 / portTICK_PERIOD_MS); 
+  }
+}
+
+
 /**
  * @brief Initializes the LoRaWAN handler.
  *
  * This function sets up the LoRaWAN handler by invoking the setup method
  * of the loRaWANHander object during the initialization phase.
  */
-void setup()
-{
+void setup() {
   loRaWANHandler.setup();
+
+  // Create the task
+  xTaskCreatePinnedToCore(
+    radarTask,        // Function name
+    "RadarTask",      // Name for debugging
+    2048,             // Stack size (bytes)
+    NULL,             // Parameter to pass
+    1,                // Priority (1 is low)
+    NULL,             // Task handle
+    0                 // Core ID (0 or 1)
+  );
 }
+  
+
 
 /**
  * @brief Continuously handles LoRaWAN events and maintains the connection.

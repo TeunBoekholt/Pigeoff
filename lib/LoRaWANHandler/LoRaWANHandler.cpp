@@ -38,12 +38,9 @@ LoRaWANHandler loRaWANHandler;
 
 // LORAWAN Settings /////////////////////////////////////////////////////////
 
-const char* appEuiStr = "5A1152C4EE0E691D";
-const char* devEuiStr = "5A1152C4EE0E691D";
-const char* appKeyStr = "FC20294F8FB6183AFA07351366DE09A2";
-uint8_t appEui[8];
-uint8_t devEui[8];
-uint8_t appKey[16];
+uint8_t appEui[8] = {0x5A, 0x11, 0x52, 0xC4, 0xEE, 0x0E, 0x69, 0x1D};
+uint8_t devEui[8] = {0x3E, 0x34, 0x93, 0xF7, 0x71, 0x70, 0xA4, 0x34};
+uint8_t appKey[16] = {0xFC, 0x20, 0x29, 0x4F, 0x8F, 0xB6, 0x18, 0x3A, 0xFA, 0x07, 0x35, 0x13, 0x66, 0xDE, 0x09, 0xA2};
 uint8_t nwkSKey[16];
 uint8_t appSKey[16];
 uint32_t devAddr = 0;
@@ -144,29 +141,20 @@ void LoRaWANHandler::initConfig(bool showConfig)
       delay(2000);
     }
 
-#ifdef CREATE_DEV_EUI_RANDOM
-    for (int i = 0; i < 8; i++)
-    {
-      devEui[i] = esp_random() & 0xFF;
-    }
-#endif 
+// #ifdef CREATE_DEV_EUI_RANDOM
+//     for (int i = 0; i < 8; i++)
+//     {
+//       devEui[i] = esp_random() & 0xFF;
+//     }
+// #endif 
 
-#ifdef CREATE_DEV_EUI_CHIPID
-    uint64_t chipId = ESP.getEfuseMac();
-    for (int i = 0; i < 8; i++)
-    {
-      devEui[i] = *(((uint8_t *)&chipId) + (7-i)) & 0xFF;
-    }
-#endif
-     for (int i = 0; i < 8; i++) {
-      // %2hhx reads exactly 2 hex characters into a single byte (unsigned char)
-      sscanf(appEuiStr + i * 2, "%2hhx", &appEui[i]);
-      sscanf(devEuiStr + i * 2, "%2hhx", &devEui[i]);
-    }
-     for (int i = 0; i < 16; i++) {
-      // %2hhx reads exactly 2 hex characters into a single byte (unsigned char)
-      sscanf(appKeyStr + i * 2, "%2hhx", &appKey[i]);
-    }
+// #ifdef CREATE_DEV_EUI_CHIPID
+//     uint64_t chipId = ESP.getEfuseMac();
+//     for (int i = 0; i < 8; i++)
+//     {
+//       devEui[i] = *(((uint8_t *)&chipId) + (7-i)) & 0xFF;
+//     }
+// #endif
     preferences.putUInt(PREFS_MAGIC, magic);
     preferences.putUInt(PREFS_SLEEPTIME, appTxDutyCycle);
     preferences.putUInt(PREFS_SEND_DELAY, sendDelay);
