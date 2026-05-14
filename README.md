@@ -8,7 +8,7 @@
 | Name | ID (Matricola) | Profile |
 | :--- | :--- | :--- |
 | **Anja Škrlj** | 2285543 | [LinkedIn](https://www.linkedin.com/in/anja-škrlj-13aa852a1) |
-| **Filippo Zanei** | 000000 | [LinkedIn](https://www.linkedin.com/in/filippozanei/) |
+| **Filippo Zanei** | 2285059 | [LinkedIn](https://www.linkedin.com/in/filippozanei/) |
 | **Teun Boekholt** | 000000 | [LinkedIn](https://www.linkedin.com/in/teun-boekholt-a41205255/) |
 
 ---
