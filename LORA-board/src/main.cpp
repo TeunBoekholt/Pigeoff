@@ -41,11 +41,16 @@ volatile float latestRadarValue = 0.0;
 volatile bool g_event_triggered = false;
 volatile uint32_t last_interrupt_time = 0;
 
-#define TRIGGER_PIN 26
-#define THRESHOLD 200
-#define RADAR_DELAY 2000
-#define PIN_INCOMING_TRIGGER 27  // Pin connected to the other board
+#define TRIGGER_PIN 2           // Pin 2 is safe on Heltec V3
+#define PIN_INCOMING_TRIGGER 3
+#define THRESHOLD 10
+#define LIDAR_DELAY 2000
 #define DEBOUNCE_TIME 500        // Prevent double-triggers (ms)
+#define LIDAR_DEFAULT 100
+
+#define RX_PIN 4 // Connect to TFmini-S TX
+#define TX_PIN 5 // Connect to TFmini-S RX (Optional, if only readin
+
 
 void IRAM_ATTR handleTriggerISR() {
     uint32_t interrupt_time = millis();
@@ -85,24 +90,63 @@ void prepareTxFrame(uint8_t port)
   }
 }
 
-#define TRIGGER_PIN 26
-#define THRESHOLD 200
-
 void radarTask(void * parameter) {
   pinMode(TRIGGER_PIN, OUTPUT);
-  
+  Serial2.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
+  Serial.begin(115200);
+
+  uint8_t frame[9]; 
+  int packetsProcessed = 0;
+
   for(;;) {
-    float reading = analogRead(34); 
-    latestRadarValue = reading;
+    // Process serial data, but cap it to prevent starving the CPU
+    // If there is continuous data, it will process up to 5 packets then yield
+    while (Serial2.available() >= 9 && packetsProcessed < 5) {
+      if (Serial2.read() == 0x59 && Serial2.peek() == 0x59) {
+        frame[0] = 0x59;
+        frame[1] = Serial2.read(); 
+        
+        for (int i = 2; i < 9; i++) {
+          frame[i] = Serial2.read();
+        }
 
-    boolean trigger = (reading > THRESHOLD);
-    digitalWrite(TRIGGER_PIN, trigger ? HIGH : LOW);
+        uint8_t checksum = 0;
+        for (int i = 0; i < 8; i++) {
+          checksum += frame[i];
+        }
 
-    vTaskDelay(RADAR_DELAY / portTICK_PERIOD_MS); 
+        if (checksum == frame[8]) {
+          int distanceCm = frame[2] + (frame[3] << 8);
+          latestRadarValue = (float)distanceCm;
+
+        
+          boolean trigger = (distanceCm < LIDAR_DEFAULT - THRESHOLD) || (distanceCm > LIDAR_DEFAULT + THRESHOLD); 
+          if (trigger) {
+            ALOG_I("Radar trigger! Distance: %d cm", distanceCm);
+          }
+          digitalWrite(TRIGGER_PIN, trigger ? HIGH : LOW);
+
+          Serial.print("Distance_cm:");
+          Serial.print(distanceCm);
+          Serial.print(",Threshold:");
+          Serial.println(THRESHOLD);
+          
+          packetsProcessed++; // Keep track of how much work we did this loop
+        }
+      } else {
+        // If the byte wasn't a valid header, we still need to break an infinite loop 
+        // in case the buffer is full of garbage data.
+        packetsProcessed++; 
+      }
+    }
+
+    // Reset our packet counter for the next cycle
+    packetsProcessed = 0;
+
+    // This vTaskDelay MUST be hit to feed the Watchdog and let FreeRTOS breathe!
+    vTaskDelay(pdMS_TO_TICKS(LIDAR_DELAY)); 
   }
 }
-
-
 /**
  * @brief Initializes the LoRaWAN handler.
  *
@@ -112,11 +156,13 @@ void radarTask(void * parameter) {
 void setup() {
   pinMode(TRIGGER_PIN, OUTPUT);
   pinMode(PIN_INCOMING_TRIGGER, INPUT_PULLDOWN);
+  Serial.println("Initializing LoRaWAN Handler...");
   loRaWANHandler.setup();
   
   attachInterrupt(digitalPinToInterrupt(PIN_INCOMING_TRIGGER), handleTriggerISR, RISING);
 
   // Create the task
+  Serial.println("Starting Radar Task...");
   xTaskCreatePinnedToCore(
     radarTask,        // Function name
     "RadarTask",      // Name for debugging
@@ -138,7 +184,7 @@ void setup() {
  */
 void loop()
 {
-  loRaWANHandler.loop();
+  // loRaWANHandler.loop();
 
   if (g_event_triggered) {
         ALOG_I("External hardware trigger detected! Initiating LoRa Uplink...");
