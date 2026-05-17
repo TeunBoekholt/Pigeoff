@@ -54,6 +54,7 @@ volatile uint32_t last_interrupt_time = 0;
 
 
 void IRAM_ATTR handleTriggerISR() {
+    Serial.print("Interrupt detected!")
     uint32_t interrupt_time = millis();
     
     // Simple debounce logic to prevent noise from triggering multiple messages
@@ -124,12 +125,6 @@ void radarTask(void * parameter) {
           latestDistanceCm = frame[2] + (frame[3] << 8);
           latestRadarValue = (float)latestDistanceCm;
           newPacketReceived = true;
-          
-          // Print current reading to the Serial Plotter
-          Serial.print("Distance_cm:");
-          Serial.print(latestDistanceCm);
-          Serial.print(",Disruption_Timer_ms:");
-          Serial.println(disruptionDurationMs);
         }
       }
     }
