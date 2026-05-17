@@ -54,7 +54,7 @@ volatile uint32_t last_interrupt_time = 0;
 
 
 void IRAM_ATTR handleTriggerISR() {
-    Serial.print("Interrupt detected!")
+    Serial.print("Interrupt detected!");
     uint32_t interrupt_time = millis();
     
     // Simple debounce logic to prevent noise from triggering multiple messages
@@ -132,8 +132,7 @@ void radarTask(void * parameter) {
     // Only process timing logic if we actually got a fresh reading this cycle
     if (newPacketReceived) {
       // Check if the current reading is anomalous (outside the threshold bounds)
-      boolean isDisrupted = (latestDistanceCm < (LIDAR_DEFAULT - THRESHOLD)) || 
-                            (latestDistanceCm > (LIDAR_DEFAULT + THRESHOLD)); 
+      boolean isDisrupted = (latestDistanceCm < (LIDAR_DEFAULT - THRESHOLD)); 
 
       if (isDisrupted) {
         // Accumulate time spent in disrupted state
