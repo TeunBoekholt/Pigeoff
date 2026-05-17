@@ -3,6 +3,29 @@
 **PigeOff** is an innovative IoT solution designed to preserve urban monuments and public spaces. By integrating smart sensing, localized deterrents, and long-range connectivity, the system offers an automated and data-driven approach to managing pigeon populations in smart city environments.
 
 
+## Setup
+
+Pin Map Tables: so we dont forget
+
+| LORA | CAM board | 
+| :--- | :--- | 
+| 2 | 13 | 
+| 3 | 14 | 
+
+| LORA | LIDAR |
+| :--- | :--- | 
+| 5V | (RED) | 
+| GND | GND | 
+| 5 | (WHITE) | 
+| 4 | (GREEN) |
+
+
+| CAM | ? |
+| :--- | :--- | 
+| UOT | RX | 
+| GND | GND | 
+| UnR | TX | 
+
 ## Team Members
 
 | Name | ID (Matricola) | Profile |
