@@ -45,7 +45,7 @@ volatile uint32_t last_interrupt_time = 0;
 #define PIN_INCOMING_TRIGGER 3
 #define THRESHOLD 10
 #define LOOP_DELAY_MS 2000
-#define DEBOUNCE_TIME 500 // Prevent double-triggers! IN ms 
+#define DEBOUNCE_TIME 5000 // How long to wait between 2 triggers
 #define LIDAR_DEFAULT 100
 #define SUSTAINED_TIME_MS 10000
 
