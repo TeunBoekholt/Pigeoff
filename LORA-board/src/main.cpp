@@ -41,12 +41,13 @@ volatile float latestRadarValue = 0.0;
 volatile bool g_event_triggered = false;
 volatile uint32_t last_interrupt_time = 0;
 
-#define TRIGGER_PIN 2           // Pin 2 is safe on Heltec V3
+#define TRIGGER_PIN 2
 #define PIN_INCOMING_TRIGGER 3
 #define THRESHOLD 10
-#define LIDAR_DELAY 2000
-#define DEBOUNCE_TIME 500        // Prevent double-triggers (ms)
+#define LOOP_DELAY_MS 2000
+#define DEBOUNCE_TIME 500 // Prevent double-triggers! IN ms 
 #define LIDAR_DEFAULT 100
+#define SUSTAINED_TIME_MS 10000
 
 #define RX_PIN 4 // Connect to TFmini-S TX
 #define TX_PIN 5 // Connect to TFmini-S RX (Optional, if only readin
@@ -89,19 +90,23 @@ void prepareTxFrame(uint8_t port)
     // Image sending is not supported.}
   }
 }
-
 void radarTask(void * parameter) {
   pinMode(TRIGGER_PIN, OUTPUT);
+  digitalWrite(TRIGGER_PIN, LOW); // Start low
+
   Serial2.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
   Serial.begin(115200);
 
   uint8_t frame[9]; 
-  int packetsProcessed = 0;
+  unsigned long disruptionDurationMs = 0; // Tracks how long the disruption has lasted
+  boolean currentlyTriggered = false;     // Tracks the output state
 
   for(;;) {
-    // Process serial data, but cap it to prevent starving the CPU
-    // If there is continuous data, it will process up to 5 packets then yield
-    while (Serial2.available() >= 9 && packetsProcessed < 5) {
+    boolean newPacketReceived = false;
+    int latestDistanceCm = LIDAR_DEFAULT;
+
+    // Pull the latest valid packet out of the serial buffer
+    while (Serial2.available() >= 9) {
       if (Serial2.read() == 0x59 && Serial2.peek() == 0x59) {
         frame[0] = 0x59;
         frame[1] = Serial2.read(); 
@@ -116,37 +121,51 @@ void radarTask(void * parameter) {
         }
 
         if (checksum == frame[8]) {
-          int distanceCm = frame[2] + (frame[3] << 8);
-          latestRadarValue = (float)distanceCm;
-
-        
-          boolean trigger = (distanceCm < LIDAR_DEFAULT - THRESHOLD) || (distanceCm > LIDAR_DEFAULT + THRESHOLD); 
-          if (trigger) {
-            ALOG_I("Radar trigger! Distance: %d cm", distanceCm);
-          }
-          digitalWrite(TRIGGER_PIN, trigger ? HIGH : LOW);
-
-          Serial.print("Distance_cm:");
-          Serial.print(distanceCm);
-          Serial.print(",Threshold:");
-          Serial.println(THRESHOLD);
+          latestDistanceCm = frame[2] + (frame[3] << 8);
+          latestRadarValue = (float)latestDistanceCm;
+          newPacketReceived = true;
           
-          packetsProcessed++; // Keep track of how much work we did this loop
+          // Print current reading to the Serial Plotter
+          Serial.print("Distance_cm:");
+          Serial.print(latestDistanceCm);
+          Serial.print(",Disruption_Timer_ms:");
+          Serial.println(disruptionDurationMs);
         }
-      } else {
-        // If the byte wasn't a valid header, we still need to break an infinite loop 
-        // in case the buffer is full of garbage data.
-        packetsProcessed++; 
       }
     }
 
-    // Reset our packet counter for the next cycle
-    packetsProcessed = 0;
+    // Only process timing logic if we actually got a fresh reading this cycle
+    if (newPacketReceived) {
+      // Check if the current reading is anomalous (outside the threshold bounds)
+      boolean isDisrupted = (latestDistanceCm < (LIDAR_DEFAULT - THRESHOLD)) || 
+                            (latestDistanceCm > (LIDAR_DEFAULT + THRESHOLD)); 
 
-    // This vTaskDelay MUST be hit to feed the Watchdog and let FreeRTOS breathe!
-    vTaskDelay(pdMS_TO_TICKS(LIDAR_DELAY)); 
+      if (isDisrupted) {
+        // Accumulate time spent in disrupted state
+        disruptionDurationMs += LOOP_DELAY_MS;
+        
+        // If it crosses the 10-second mark and isn't already triggered
+        if (disruptionDurationMs >= SUSTAINED_TIME_MS && !currentlyTriggered) {
+          currentlyTriggered = true;
+          digitalWrite(TRIGGER_PIN, HIGH);
+          Serial.println(">>> TRIGGER ACTIVATED: Sustained disruption for 10s! <<<");
+        }
+      } else {
+        // Clear the timer immediately if the reading snaps back to normal
+        if (disruptionDurationMs > 0 || currentlyTriggered) {
+          disruptionDurationMs = 0;
+          currentlyTriggered = false;
+          digitalWrite(TRIGGER_PIN, LOW);
+          Serial.println(">>> TRIGGER CLEARED: Reading returned to baseline. <<<");
+        }
+      }
+    }
+
+    // Sleep for 200ms before checking the accumulation again
+    vTaskDelay(pdMS_TO_TICKS(LOOP_DELAY_MS)); 
   }
 }
+
 /**
  * @brief Initializes the LoRaWAN handler.
  *
