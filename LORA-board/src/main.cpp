@@ -50,7 +50,7 @@ volatile uint32_t last_interrupt_time = 0;
 #define SUSTAINED_TIME_MS 10000
 
 #define RX_PIN 4 // Connect to TFmini-S TX
-#define TX_PIN 5 // Connect to TFmini-S RX (Optional, if only readin
+#define TX_PIN 5 // Connect to TFmini-S RX 
 
 
 void IRAM_ATTR handleTriggerISR() {
