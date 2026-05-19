@@ -7,12 +7,12 @@
 
 Pin Map Tables: so we dont forget
 
-| LORA | CAM board | 
+| heltec esp32 v3 LORA | esp32-CAM board | 
 | :--- | :--- | 
 | 2 | 13 | 
 | 3 | 14 | 
 
-| LORA | LIDAR |
+| heltec esp32 v3 LORA | tf-mini lidar |
 | :--- | :--- | 
 | 5V | (RED) | 
 | GND | GND | 
@@ -20,11 +20,15 @@ Pin Map Tables: so we dont forget
 | 4 | (GREEN) |
 
 
-| CAM | ? |
+| esp32-CAM board | USB-to-TTL serial adapter |
 | :--- | :--- | 
 | UOT | RX | 
 | GND | GND | 
 | UnR | TX | 
+
+## Task structure 
+
+![Task structure](task_structure.png)
 
 ## Team Members
 

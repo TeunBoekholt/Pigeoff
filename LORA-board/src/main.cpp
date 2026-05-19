@@ -44,7 +44,7 @@ volatile uint32_t last_interrupt_time = 0;
 #define TRIGGER_PIN 2
 #define PIN_INCOMING_TRIGGER 3
 #define THRESHOLD 10
-#define LOOP_DELAY_MS 2000
+#define LIDAR_SAMPLING_RATE 1000
 #define DEBOUNCE_TIME 5000 // How long to wait between 2 triggers
 #define LIDAR_DEFAULT 100
 #define SUSTAINED_TIME_MS 10000
@@ -88,25 +88,20 @@ void prepareTxFrame(uint8_t port)
     appData[0] = sentInt;
     }
   else {
-    // Image sending is not supported.}
+    // Image sending is not supported.
   }
 }
-void radarTask(void * parameter) {
-  pinMode(TRIGGER_PIN, OUTPUT);
-  digitalWrite(TRIGGER_PIN, LOW); // Start low
 
+QueueHandle_t radarQueue = NULL;
+TaskHandle_t radarReaderTaskHandle = NULL;
+TaskHandle_t radarProcessingTaskHandle = NULL;
+
+void radarReaderTask(void * parameter) {
   Serial2.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
-  Serial.begin(115200);
-
-  uint8_t frame[9]; 
-  unsigned long disruptionDurationMs = 0; // Tracks how long the disruption has lasted
-  boolean currentlyTriggered = false;     // Tracks the output state
+  uint8_t frame[9];
 
   for(;;) {
-    boolean newPacketReceived = false;
-    int latestDistanceCm = LIDAR_DEFAULT;
-
-    // Pull the latest valid packet out of the serial buffer
+    // Pull packets out of the serial buffer
     while (Serial2.available() >= 9) {
       if (Serial2.read() == 0x59 && Serial2.peek() == 0x59) {
         frame[0] = 0x59;
@@ -122,43 +117,83 @@ void radarTask(void * parameter) {
         }
 
         if (checksum == frame[8]) {
-          latestDistanceCm = frame[2] + (frame[3] << 8);
-          latestRadarValue = (float)latestDistanceCm;
-          newPacketReceived = true;
+          int distanceCm = frame[2] + (frame[3] << 8);
+          latestRadarValue = (float)distanceCm;
+
+          // Push the measurement onto the queue. 
+          // Wait up to 0 ticks if the queue is full (overwrite/drop old data)
+          xQueueSend(radarQueue, &distanceCm, 0);
         }
       }
     }
-
-    // Only process timing logic if we actually got a fresh reading this cycle
-    if (newPacketReceived) {
-      // Check if the current reading is anomalous (outside the threshold bounds)
-      boolean isDisrupted = (latestDistanceCm < (LIDAR_DEFAULT - THRESHOLD)); 
-
-      if (isDisrupted) {
-        // Accumulate time spent in disrupted state
-        disruptionDurationMs += LOOP_DELAY_MS;
-        
-        // If it crosses the 10-second mark and isn't already triggered
-        if (disruptionDurationMs >= SUSTAINED_TIME_MS && !currentlyTriggered) {
-          currentlyTriggered = true;
-          digitalWrite(TRIGGER_PIN, HIGH);
-          Serial.println(">>> TRIGGER ACTIVATED: Sustained disruption for 10s! <<<");
-        }
-      } else {
-        // Clear the timer immediately if the reading snaps back to normal
-        if (disruptionDurationMs > 0 || currentlyTriggered) {
-          disruptionDurationMs = 0;
-          currentlyTriggered = false;
-          digitalWrite(TRIGGER_PIN, LOW);
-          Serial.println(">>> TRIGGER CLEARED: Reading returned to baseline. <<<");
-        }
-      }
-    }
-
-    // Sleep for 200ms before checking the accumulation again
-    vTaskDelay(pdMS_TO_TICKS(LOOP_DELAY_MS)); 
+    // Quick pause to prevent starving the CPU core
+    vTaskDelay(pdMS_TO_TICKS(LIDAR_SAMPLING_RATE)); 
   }
 }
+
+void radarProcessingTask(void * parameter) {
+  int receivedDistanceCm = LIDAR_DEFAULT;
+  unsigned long disruptionDurationMs = 0;
+  boolean currentlyTriggered = false;
+
+  for(;;) {
+    // xQueueReceive blocks automatically until data arrives in the queue.
+    // Checking every LOOP_DELAY_MS match our original step timing window.
+    if (xQueueReceive(radarQueue, &receivedDistanceCm, pdMS_TO_TICKS(LIDAR_SAMPLING_RATE)) == pdTRUE) {
+      
+      boolean isDisrupted = (receivedDistanceCm < (LIDAR_DEFAULT - THRESHOLD));
+
+      if (isDisrupted) {
+        disruptionDurationMs += LIDAR_SAMPLING_RATE;
+        
+        if (disruptionDurationMs >= SUSTAINED_TIME_MS && !currentlyTriggered) {
+          currentlyTriggered = true;
+          
+          // CRITICAL STEP: Suspend the hardware reader task instantly
+          vTaskSuspend(radarReaderTaskHandle);
+          Serial.println(">>> RADAR TASK SUSPENDED <<<");
+          
+          // Fire physical trigger
+          digitalWrite(TRIGGER_PIN, HIGH);
+          Serial.println(">>> TRIGGER ACTIVATED: Sustained disruption for 10s! <<<");
+          
+          // ----------------================---------------------------------
+          // EXECUTE YOUR EXTERNAL LOOP TRIGGER HERE
+          // Example: Wait for Camera task to finish, transmit data, etc.
+          // For demonstration, simulating an execution delay:
+          vTaskDelay(pdMS_TO_TICKS(5000)); // Simulating a 5-second capture cycle
+          // ----------------================---------------------------------
+
+          // Reset status values after the action loop completes
+          digitalWrite(TRIGGER_PIN, LOW);
+          currentlyTriggered = false;
+          disruptionDurationMs = 0;
+          Serial.println(">>> TRIGGER CLEARED: Action loop complete. <<<");
+
+          // Clear out stale data that piled up in serial buffers before resuming
+          while(Serial2.available() > 0) { Serial2.read(); } 
+          xQueueReset(radarQueue); 
+
+          // Resume the radar reader task safely
+          vTaskResume(radarReaderTaskHandle);
+          Serial.println(">>> RADAR TASK RESUMED <<<");
+        }
+      } else {
+        // Clear the timer if reading returns to normal before hitting 10s
+        if (disruptionDurationMs > 0) {
+          disruptionDurationMs = 0;
+        }
+      }
+
+      // Output to Plotter
+      Serial.print("Distance_cm:");
+      Serial.print(receivedDistanceCm);
+      Serial.print(",Disruption_Timer_ms:");
+      Serial.println(disruptionDurationMs);
+    }
+  }
+}
+
 
 /**
  * @brief Initializes the LoRaWAN handler.
@@ -174,20 +209,38 @@ void setup() {
   
   attachInterrupt(digitalPinToInterrupt(PIN_INCOMING_TRIGGER), handleTriggerISR, RISING);
 
-  // Create the task
-  Serial.println("Starting Radar Task...");
-  xTaskCreatePinnedToCore(
-    radarTask,        // Function name
-    "RadarTask",      // Name for debugging
-    2048,             // Stack size (bytes)
-    NULL,             // Parameter to pass
-    1,                // Priority (1 is low)
-    NULL,             // Task handle
-    0                 // Core ID (0 or 1)
-  );
-}
-  
+  radarQueue = xQueueCreate(10, sizeof(int));
 
+  if (radarQueue != NULL) {
+    // 1. Create the Hardware Reading Task (Core 0)
+    xTaskCreatePinnedToCore(
+      radarReaderTask,
+      "RadarReader",
+      3072,
+      NULL,
+      2, // Slightly higher priority to ensure serial data is captured without drops
+      &radarReaderTaskHandle,
+      0
+    );
+
+    // 2. Create the Data Processing Task (Core 1)
+    xTaskCreatePinnedToCore(
+      radarProcessingTask,
+      "RadarProcessing",
+      3072,
+      NULL,
+      1, // Normal priority
+      &radarProcessingTaskHandle,
+      1
+    );
+    
+    Serial.println("Both FreeRTOS Radar Tasks Initialized.");
+  } else {
+    Serial.println("Error creating the Radar Queue!");
+  }
+}
+
+  
 /**
  * @brief Continuously handles LoRaWAN events and maintains the connection.
  *
@@ -197,7 +250,7 @@ void setup() {
  */
 void loop()
 {
-  // loRaWANHandler.loop();
+  loRaWANHandler.loop();
 
   if (g_event_triggered) {
         ALOG_I("External hardware trigger detected! Initiating LoRa Uplink...");
@@ -206,8 +259,6 @@ void loop()
         g_event_triggered = false;
 
         // Force a LoRaWAN transmission
-        // Note: The specific function name depends on your LoRaWAN library
-        // usually loRaWANHandler.send() or similar.
         prepareTxFrame(1); // Prepare the frame on the desired port (e.g., 1)
     }
 }
