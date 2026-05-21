@@ -43,7 +43,7 @@ volatile uint32_t last_interrupt_time = 0;
 
 #define TRIGGER_PIN 2
 #define PIN_INCOMING_TRIGGER 3
-#define THRESHOLD 10
+#define THRESHOLD 10 
 #define LIDAR_SAMPLING_RATE 1000
 #define DEBOUNCE_TIME 5000 // How long to wait between 2 triggers
 #define LIDAR_DEFAULT 100
@@ -191,6 +191,15 @@ void radarProcessingTask(void * parameter) {
       Serial.print(",Disruption_Timer_ms:");
       Serial.println(disruptionDurationMs);
     }
+ 
+    // Force the internal RTC timer to wake us up in exactly LIDAR_SAMPLING_RATE MS
+    // (Macro requires microseconds: 1 ms = 1000 us)
+    esp_sleep_enable_timer_wakeup(LIDAR_SAMPLING_RATE * 999ULL);
+    Serial.flush(); // Cleanly flush logs out of the serial bus before power gates drop
+
+    // Command the hardware layer into a low power light sleep state immediately.
+    // The CPU freezes here. RAM stays perfectly intact. 
+    esp_light_sleep_start();
   }
 }
 
