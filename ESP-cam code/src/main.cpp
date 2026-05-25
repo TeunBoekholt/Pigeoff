@@ -23,11 +23,12 @@
 #define PCLK_GPIO_NUM 22
 
 // --- DIGITAL I/O PINS FOR HELTEC ---
-// NOTE: For Deep Sleep wake-up, the Trigger Pin must be an RTC-capable GPIO.
-// GPIO 13 is perfect for this!
-#define TRIGGER_PIN GPIO_NUM_13
-#define RESPONSE_PIN 14
+#define TRIGGER_PIN 13  // Input: Heltec pulls HIGH to trigger capture
+#define RESPONSE_PIN 14 // Output: ESP32-CAM sets HIGH (Pigeon) or LOW (Clear)
 
+bool lastTriggerState = LOW;
+
+// Global variable to hold camera frame
 camera_fb_t *fb = NULL;
 
 /**
@@ -65,6 +66,7 @@ void setup_camera()
     if (err != ESP_OK)
     {
         Serial.printf("ERR: Camera init failed (0x%x)\n", err);
+        return;
     }
 }
 
@@ -93,95 +95,93 @@ int live_camera_get_data(size_t offset, size_t length, float *out_ptr)
 
 void setup()
 {
+    // Serial 0 stays for VS Code Terminal debugging logs
     Serial.begin(115200);
 
-    // 1. Configure the RESPONSE output pin immediately
+    // Configure Pin Modes
+    pinMode(TRIGGER_PIN, INPUT);
     pinMode(RESPONSE_PIN, OUTPUT);
-    digitalWrite(RESPONSE_PIN, LOW); // Default to LOW
 
-    // 2. Tell the ESP32 to wake up NEXT time GPIO 13 gets pulled HIGH
-    esp_sleep_enable_ext0_wakeup(TRIGGER_PIN, 1);
-
-    Serial.println("\n--- Waking up! Running AI... ---");
-
-    // 3. Initialize Camera
-    setup_camera();
-
-    // CRITICAL FIX FOR COLD BOOT:
-    // The camera sensor needs time to adjust auto-exposure and white balance.
-    delay(500);
-
-    // Clear a "throwaway" frame out of the buffer to prevent a black/green image
-    fb = esp_camera_fb_get();
-    if (fb)
-        esp_camera_fb_return(fb);
-    delay(50);
-
-    // 4. Take the real picture
-    fb = esp_camera_fb_get();
-    if (!fb)
-    {
-        Serial.println("ERR: Camera capture failed!");
-        // We will just let it go to sleep and try again next time
-    }
-    else
-    {
-        // 5. Setup Edge Impulse pipeline
-        signal_t features_signal;
-        features_signal.total_length = EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE;
-        features_signal.get_data = &live_camera_get_data;
-
-        // 6. Run Inference
-        ei_impulse_result_t result = {0};
-        EI_IMPULSE_ERROR res = run_classifier(&features_signal, &result, false);
-
-        if (res == 0)
-        {
-            // 7. Evaluate the results
-            bool pigeonDetected = false;
-            for (uint16_t i = 0; i < EI_CLASSIFIER_LABEL_COUNT; i++)
-            {
-                if (strcmp(result.classification[i].label, "pigeon") == 0)
-                {
-                    if (result.classification[i].value > 0.6f)
-                    {
-                        pigeonDetected = true;
-                    }
-                }
-            }
-
-            // 8. Set the output pin HIGH or LOW based on the verdict
-            if (pigeonDetected)
-            {
-                Serial.println("Verdict: PIGEON! Setting Response HIGH.");
-                digitalWrite(RESPONSE_PIN, HIGH);
-            }
-            else
-            {
-                Serial.println("Verdict: Clear. Response remains LOW.");
-                digitalWrite(RESPONSE_PIN, LOW);
-            }
-        }
-
-        // 9. Free camera memory
-        esp_camera_fb_return(fb);
-    }
-
-    // 10. HOLD THE SIGNAL SO HELTEC CAN READ IT
-    // The Heltec needs time to realize the inference is done and read pin 14.
-    // We hold the result for 2 seconds before cutting our own power.
-    delay(2000);
-
-    // 11. GO BACK TO SLEEP
-    Serial.println("Shutting down...");
-
-    // Ensure the pin goes back LOW so we don't accidentally leave it HIGH
+    // Start with the response pin LOW
     digitalWrite(RESPONSE_PIN, LOW);
 
-    esp_deep_sleep_start();
+    delay(2000);
+    Serial.println("\n--- ESP32-CAM Pure Digital Module Ready ---");
+
+    setup_camera();
 }
 
 void loop()
 {
-    // The board sleeps at the end of setup(), so loop() is completely ignored.
+    // Read the current state of the trigger pin
+    bool currentTriggerState = digitalRead(TRIGGER_PIN);
+
+    // Detect RISING EDGE from Heltec
+    if (currentTriggerState == HIGH && lastTriggerState == LOW)
+    {
+        Serial.println("Trigger HIGH received! Running AI...");
+
+        delay(50); // Small debounce
+
+        // 1. Take the picture
+        fb = esp_camera_fb_get();
+        if (!fb)
+        {
+            Serial.println("ERR: Camera capture failed!");
+            // Optional: You could pulse the response pin rapidly here to signal an error
+            return;
+        }
+
+        // 2. Setup Edge Impulse pipeline
+        signal_t features_signal;
+        features_signal.total_length = EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE;
+        features_signal.get_data = &live_camera_get_data;
+
+        // 3. Run Inference
+        ei_impulse_result_t result = {0};
+        EI_IMPULSE_ERROR res = run_classifier(&features_signal, &result, false);
+
+        if (res != 0)
+        {
+            Serial.printf("ERR: Classifier failed (%d)\n", res);
+            esp_camera_fb_return(fb);
+            return;
+        }
+
+        // 4. Evaluate the results
+        bool pigeonDetected = false;
+        for (uint16_t i = 0; i < EI_CLASSIFIER_LABEL_COUNT; i++)
+        {
+            if (strcmp(result.classification[i].label, "pigeon") == 0)
+            {
+                if (result.classification[i].value > 0.6f)
+                {
+                    pigeonDetected = true;
+                }
+            }
+        }
+
+        // 5. Set the output pin HIGH or LOW based on the verdict
+        if (pigeonDetected)
+        {
+            Serial.println("Verdict: PIGEON! Setting Response HIGH.");
+            digitalWrite(RESPONSE_PIN, HIGH);
+
+            delay(2000); // Keep HIGH for 2 seconds to signal detection
+            digitalWrite(RESPONSE_PIN, LOW);
+
+            Serial.println("Response LOW after delay.");
+        }
+        else
+        {
+            Serial.println("Verdict: Clear. Setting Response LOW.");
+            digitalWrite(RESPONSE_PIN, LOW);
+        }
+
+        // 6. Free camera memory
+        esp_camera_fb_return(fb);
+    }
+
+    // Save state for the next loop
+    lastTriggerState = currentTriggerState;
 }
