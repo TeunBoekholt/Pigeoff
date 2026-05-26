@@ -76,7 +76,9 @@ As a lean alternative, a specialized handcrafted dataset and model architecture 
 
 ---
 
-## LoRaWAN  & Data Analysis
+## LoRaWAN 
+
+### Technical Details
 
 We use LoRa to transmit the count of pidgeons every 15 minutes. The number is a way of balancing energy constrains with analysis power. This is a granularity that allows us to map how pidgeon behaviour is affected by opening times of restaurants
 
@@ -84,7 +86,18 @@ We use unconfirmed uplinks to conserve energy, since a missed uplink is not esse
 
 In current location the uplinks are sent with a spreading factor of 7: This is a low spreading factor, that is energy efficient due to shorter radio times. We note, that this depends on the location of the node (specifically, its' distance to the nearest LoRa gateway).
 
+### Sample Analysis
+
+The final analysis of a day using the pidgeon counts would look something like this: 
+
 ![LoRa Sample Analysis](img\lora_analysis.png)
+
+The following analysis questions could be tackled with this:
+* Does human presence deter or attract pigeons?
+* Do smells and crumbs coming from open food establishments attract pidgeons?
+* Does the trash from closing restaurants attract pidgeons? 
+
+**PigeOFF** deters pigeons but also allows us to perform analysis that can help us in future approaches to tackling the problem of pigeons in urban environments.
 
 ## System Performance
 
