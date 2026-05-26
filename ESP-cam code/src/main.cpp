@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include "esp_camera.h"
 
-// 1. Edge Impulse library name
 #include <PigeOff_0.3_inferencing.h>
 
 // --- AI Thinker ESP32-CAM Pinout ---
@@ -23,10 +22,8 @@
 #define PCLK_GPIO_NUM 22
 
 // --- DIGITAL I/O PINS FOR HELTEC ---
-#define TRIGGER_PIN 13  // Input: Heltec pulls HIGH to trigger capture
-#define RESPONSE_PIN 14 // Output: ESP32-CAM sets HIGH (Pigeon) or LOW (Clear)
-
-bool lastTriggerState = LOW;
+#define TRIGGER_PIN GPIO_NUM_13  
+#define RESPONSE_PIN 14 
 
 // Global variable to hold camera frame
 camera_fb_t *fb = NULL;
@@ -66,7 +63,6 @@ void setup_camera()
     if (err != ESP_OK)
     {
         Serial.printf("ERR: Camera init failed (0x%x)\n", err);
-        return;
     }
 }
 
@@ -81,13 +77,14 @@ int live_camera_get_data(size_t offset, size_t length, float *out_ptr)
     {
         uint8_t pixel = cam_pixels[offset + i];
 
-        if (pixel < 127)
+
+        if (pixel < 160)
         {
-            out_ptr[i] = 0.0f;
+            out_ptr[i] = 0.0f; // Black
         }
         else
         {
-            out_ptr[i] = 16777215.0f;
+            out_ptr[i] = 16777215.0f; // White
         }
     }
     return 0;
@@ -95,93 +92,95 @@ int live_camera_get_data(size_t offset, size_t length, float *out_ptr)
 
 void setup()
 {
-    // Serial 0 stays for VS Code Terminal debugging logs
     Serial.begin(115200);
 
-    // Configure Pin Modes
-    pinMode(TRIGGER_PIN, INPUT);
+    // Configure Response Pin
     pinMode(RESPONSE_PIN, OUTPUT);
-
-    // Start with the response pin LOW
     digitalWrite(RESPONSE_PIN, LOW);
 
-    delay(2000);
-    Serial.println("\n--- ESP32-CAM Pure Digital Module Ready ---");
+    // Arm the hardware trap for the NEXT wake cycle
+    esp_sleep_enable_ext0_wakeup(TRIGGER_PIN, HIGH);
+
+    Serial.println("\n--- Waking Up! Running Pigeon AI... ---");
 
     setup_camera();
-}
 
-void loop()
-{
-    // Read the current state of the trigger pin
-    bool currentTriggerState = digitalRead(TRIGGER_PIN);
-
-    // Detect RISING EDGE from Heltec
-    if (currentTriggerState == HIGH && lastTriggerState == LOW)
-    {
-        Serial.println("Trigger HIGH received! Running AI...");
-
-        delay(50); // Small debounce
-
-        // 1. Take the picture
+    // Give the sensor power, then flush 3 frames to let Auto-Exposure stabilize
+    delay(500); 
+    
+    for (int i = 0; i < 3; i++) {
         fb = esp_camera_fb_get();
-        if (!fb)
-        {
-            Serial.println("ERR: Camera capture failed!");
-            // Optional: You could pulse the response pin rapidly here to signal an error
-            return;
-        }
+        if(fb) esp_camera_fb_return(fb);
+        delay(200); // Give the sensor a moment between garbage frames
+    }
 
-        // 2. Setup Edge Impulse pipeline
+    // Take the REAL picture
+    fb = esp_camera_fb_get();
+
+    if (!fb)
+    {
+        Serial.println("ERR: Camera capture failed!");
+        // We skip inference if capture fails, but still go back to sleep
+    }
+    else
+    {
+        // Setup Edge Impulse pipeline
         signal_t features_signal;
         features_signal.total_length = EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE;
         features_signal.get_data = &live_camera_get_data;
 
-        // 3. Run Inference
+        // Run Inference
         ei_impulse_result_t result = {0};
         EI_IMPULSE_ERROR res = run_classifier(&features_signal, &result, false);
 
-        if (res != 0)
+        if (res == 0)
         {
-            Serial.printf("ERR: Classifier failed (%d)\n", res);
-            esp_camera_fb_return(fb);
-            return;
-        }
-
-        // 4. Evaluate the results
-        bool pigeonDetected = false;
-        for (uint16_t i = 0; i < EI_CLASSIFIER_LABEL_COUNT; i++)
-        {
-            if (strcmp(result.classification[i].label, "pigeon") == 0)
+                // Evaluate results
+            bool pigeonDetected = false;
+            for (uint16_t i = 0; i < EI_CLASSIFIER_LABEL_COUNT; i++)
             {
-                if (result.classification[i].value > 0.6f)
+                // we print the confidence score to the serial monitor for debugging
+                Serial.printf("  %s score: %.5f\n", result.classification[i].label, result.classification[i].value);
+
+                if (strcmp(result.classification[i].label, "pigeon") == 0)
                 {
-                    pigeonDetected = true;
+                    if (result.classification[i].value > 0.6f)
+                    {
+                        pigeonDetected = true;
+                    }
                 }
             }
-        }
 
-        // 5. Set the output pin HIGH or LOW based on the verdict
-        if (pigeonDetected)
-        {
-            Serial.println("Verdict: PIGEON! Setting Response HIGH.");
-            digitalWrite(RESPONSE_PIN, HIGH);
-
-            delay(2000); // Keep HIGH for 2 seconds to signal detection
-            digitalWrite(RESPONSE_PIN, LOW);
-
-            Serial.println("Response LOW after delay.");
+            // Send the signal to the Heltec
+            if (pigeonDetected)
+            {
+                Serial.println("Verdict: PIGEON! Setting Response HIGH.");
+                digitalWrite(RESPONSE_PIN, HIGH);
+                delay(1000); // Hold HIGH for 1 second so the Heltec has time to read it
+                digitalWrite(RESPONSE_PIN, LOW); // Reset it
+            }
+            else
+            {
+                Serial.println("Verdict: Clear. Response remains LOW.");
+            }
         }
         else
         {
-            Serial.println("Verdict: Clear. Setting Response LOW.");
-            digitalWrite(RESPONSE_PIN, LOW);
+            Serial.printf("ERR: Classifier failed (%d)\n", res);
         }
 
-        // 6. Free camera memory
+        //Free camera memory
         esp_camera_fb_return(fb);
     }
 
-    // Save state for the next loop
-    lastTriggerState = currentTriggerState;
+    Serial.println("Shutting down...");
+    
+    digitalWrite(RESPONSE_PIN, LOW); 
+    
+    esp_deep_sleep_start(); 
+}
+
+void loop()
+{
+    // Deep sleep acts like a reboot. This loop will literally never be reache!
 }
