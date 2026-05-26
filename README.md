@@ -23,7 +23,7 @@ Note, that the LiDAR is a stand-in sensor due shipping issues, the sensor that i
 ### Task Structure Overview
 The system relies on an asynchronous multi-task structure to handle sensor sampling, queue management, and camera triggers concurrently.
 
-![Task structure](img\task_structure_v2.png)
+![Task structure](img/task_structure_v2.png)
 
 ### Hardware Interconnectivity
 
@@ -63,7 +63,7 @@ Using a robust dataset processed via **Roboflow**, we trained a **MobileNetV1 (9
 * **Data Split:** 80% Train / 20% Test
 * **Characteristics:** High generalization accuracy across diverse lighting environments.
 
-![Classifier 1](img\classifier1.png)
+![Classifier 1](img/classifier1.png)
 
 ### Model Iteration 2: Handcrafted Feature Extraction
 As a lean alternative, a specialized handcrafted dataset and model architecture were built directly in Edge Impulse to minimize processing overhead.
@@ -72,7 +72,7 @@ As a lean alternative, a specialized handcrafted dataset and model architecture 
 * **Data Split:** 80% Train / 20% Test
 * **Characteristics:** Rapid training time, optimized strictly for targeted landmark profiles.
 
-![Classifier 2](img\classifier2.png)
+![Classifier 2](img/classifier2.png)
 
 ---
 
@@ -90,7 +90,7 @@ In current location the uplinks are sent with a spreading factor of 7: This is a
 
 The final analysis of a day using the pidgeon counts would look something like this: 
 
-![LoRa Sample Analysis](img\lora_analysis.png)
+![LoRa Sample Analysis](img/lora_analysis.png)
 
 The following analysis questions could be tackled with this:
 * Does human presence deter or attract pigeons?
