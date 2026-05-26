@@ -24,7 +24,7 @@
 #include <Preferences.h>
 #include <alog.h>
 
-bool testMode = true;
+bool testMode = false; 
 volatile float pidgeonCounter = 0.0;
 volatile float latestRadarValue = 0.0;
 volatile bool g_event_triggered = false;
@@ -180,16 +180,16 @@ void radarProcessingTask(void * parameter) {
           // Fire physical trigger
           digitalWrite(TRIGGER_PIN, HIGH);
           Serial.println(">>> TRIGGER ACTIVATED: Sustained disruption for 10s! <<<");
-          
+          vTaskDelay(pdMS_TO_TICKS(100));
+          digitalWrite(TRIGGER_PIN, LOW);
           // ----------------================---------------------------------
           // EXECUTE YOUR EXTERNAL LOOP TRIGGER HERE
           // Example: Wait for Camera task to finish, transmit data, etc.
           // For demonstration, simulating an execution delay:
-          vTaskDelay(pdMS_TO_TICKS(8000)); // Simulating a 5-second capture cycle
+          vTaskDelay(pdMS_TO_TICKS(6000)); // Simulating a 5-second capture cycle
           // ----------------================---------------------------------
 
           // Reset status values after the action loop completes
-          digitalWrite(TRIGGER_PIN, LOW);
           currentlyTriggered = false;
           disruptionDurationMs = 0;
           Serial.println(">>> TRIGGER CLEARED: Action loop complete. <<<");
@@ -215,18 +215,18 @@ void radarProcessingTask(void * parameter) {
       Serial.print(",Disruption_Timer_ms:");
       Serial.println(disruptionDurationMs);
     }
-    // if (!loRaWANHandler.getLoraIsActive()) {
-    //   // If LoRaWAN is not active, we can afford to sleep more aggressively.
-    //   // This is a good place to put the device into a light sleep mode to save power.
-    //   // Force the internal RTC timer to wake us up in exactly LIDAR_SAMPLING_RATE MS
-    //   // (Macro requires microseconds: 1 ms = 1000 us)
-    //   esp_sleep_enable_timer_wakeup(LIDAR_SAMPLING_RATE * 950ULL);
-    //   // Serial.flush(); // Cleanly flush logs out of the serial bus before power gates drop
+    if (!loRaWANHandler.getLoraIsActive()) {
+      // If LoRaWAN is not active, we can afford to sleep more aggressively.
+      // This is a good place to put the device into a light sleep mode to save power.
+      // Force the internal RTC timer to wake us up in exactly LIDAR_SAMPLING_RATE MS
+      // (Macro requires microseconds: 1 ms = 1000 us)
+      esp_sleep_enable_timer_wakeup(LIDAR_SAMPLING_RATE * 950ULL);
+      // Serial.flush(); // Cleanly flush logs out of the serial bus before power gates drop
 
-    //   // // Command the hardware layer into a low power light sleep state immediately.
-    //   // // The CPU freezes here. RAM stays perfectly intact. 
-    //   esp_light_sleep_start();
-    // }
+      // // Command the hardware layer into a low power light sleep state immediately.
+      // // The CPU freezes here. RAM stays perfectly intact. 
+      esp_light_sleep_start();
+    }
   }
 }
 
