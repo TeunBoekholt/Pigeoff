@@ -166,6 +166,11 @@ void loop()
         {
             Serial.println("Verdict: PIGEON! Setting Response HIGH.");
             digitalWrite(RESPONSE_PIN, HIGH);
+
+            delay(2000); // Keep HIGH for 2 seconds to signal detection
+            digitalWrite(RESPONSE_PIN, LOW);
+
+            Serial.println("Response LOW after delay.");
         }
         else
         {
@@ -179,6 +184,4 @@ void loop()
 
     // Save state for the next loop
     lastTriggerState = currentTriggerState;
-}
-    }
 }
