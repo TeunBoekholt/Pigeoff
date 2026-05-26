@@ -17,42 +17,53 @@
 #include <LoRaWANHandler.hpp>
 #include <rom/crc.h>
 #include <alog.h>
+#include "LoRaWANHandler.hpp"
+#include <LoRaWan_APP.h>
+#include <Wire.h>
+#include <HT_SSD1306Wire.h>
+#include <Preferences.h>
+#include <alog.h>
 
-/*
-
-Schedule downlink (FPort 1)
-NOTE: if you want dowlink to put device to sleep, use this payload format and command:
-Payload Type: Bytes
-  Byte 0: 0x5A (magic number) 
-   - Why 0x5A? 0x5A is a nice binary number, '0101 1010', 
-     and it's easy to recognize.
-  Byte 1: Command 
-  Byte 2-5: Value
-
-Commands:
-  0x01: Set sleep time
-  0x02: Set send delay
-Example:
-0x5A 0x01 0x00 0x01 0xD4 0xC0 -> Set sleep time to 120000ms (2 minutes)
-*/
-
-bool sendImage = false;
+bool testMode = true;
+volatile float pidgeonCounter = 0.0;
 volatile float latestRadarValue = 0.0;
 volatile bool g_event_triggered = false;
 volatile uint32_t last_interrupt_time = 0;
 
+TimerHandle_t fakeInterruptTimer;
+QueueHandle_t radarQueue = NULL;
+TaskHandle_t radarReaderTaskHandle = NULL;
+TaskHandle_t radarProcessingTaskHandle = NULL;
+
+extern SSD1306Wire display;
+
+#define LORA_SEND_INTERVAL_MS 600000 // 10 minute
 #define TRIGGER_PIN 2
 #define PIN_INCOMING_TRIGGER 3
 #define THRESHOLD 10 
 #define LIDAR_SAMPLING_RATE 1000
-#define DEBOUNCE_TIME 5000 // How long to wait between 2 triggers
-#define LIDAR_DEFAULT 100
-#define SUSTAINED_TIME_MS 10000
+#define DEBOUNCE_TIME 1000 // How long to wait between 2 triggers
+#define LIDAR_DEFAULT 80
+#define SUSTAINED_TIME_MS 5000
 
 #define RX_PIN 4 // Connect to TFmini-S TX
 #define TX_PIN 5 // Connect to TFmini-S RX 
 
 
+/**
+ * @brief Artificial interrupt callback for testing without hardware.
+ *
+ * @param xTimer the timer handle.
+ */
+void fakeInterruptCallback(TimerHandle_t xTimer) {
+  // Serial.println("Software Timer Fired! Executing trigger code...");
+  g_event_triggered = true;
+  // pidgeonCounter+= 1.0;
+}
+
+/**
+ * @brief Code to execute when the Esp32-CAM sends an interrupt signal. (e.g. when it detects a pidgeon)
+ */
 void IRAM_ATTR handleTriggerISR() {
     Serial.print("Interrupt detected!");
     uint32_t interrupt_time = millis();
@@ -66,13 +77,8 @@ void IRAM_ATTR handleTriggerISR() {
 
 /**
  * @brief Prepares the transmission frame for LoRaWAN.
- *
- * This function sets up the application data to be sent over LoRaWAN.
- * If a send delay is configured, it applies the delay before preparing the frame.
- *
  * @param port The port number on which to send the data.
  */
-// uint8_t appData[255]
 void prepareTxFrame(uint8_t port)
 {
   // e.g. warmup delay for the sensor
@@ -82,27 +88,32 @@ void prepareTxFrame(uint8_t port)
     delay(loRaWANHandler.getSendDelay());
   }
 
-  if (!sendImage) {
-    uint8_t sentInt = (uint8_t)7; // TODO test value - to be replaced by sensor data
-    appDataSize = 1;
-    appData[0] = sentInt;
-    }
-  else {
-    // Image sending is not supported.
-  }
+  uint8_t pidgeonCount = (uint8_t)pidgeonCounter;
+  pidgeonCounter = 0.0; // reset counter after reading
+  ALOG_D("Preparing LoRa frame with count: %d", pidgeonCount);
+  appDataSize = 4;
+  appData[0] = 0xA5; // preamble
+  appData[1] = 0x01; // status
+  appData[2] = pidgeonCount; // pidgeon count code
+  appData[3] = crc8_le(0, appData, appDataSize - 1); // crc 8 LE
 }
 
-QueueHandle_t radarQueue = NULL;
-TaskHandle_t radarReaderTaskHandle = NULL;
-TaskHandle_t radarProcessingTaskHandle = NULL;
-
+/**
+ * @brief The task on Core 0 that continuously reads from the radar sensor and writes it to a queue.
+ * @param parameter 
+ */
 void radarReaderTask(void * parameter) {
   Serial2.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
   uint8_t frame[9];
 
   for(;;) {
-    // Pull packets out of the serial buffer
-    while (Serial2.available() >= 9) {
+    // Clear stale data and avoid processing old packets!
+   while (Serial2.available() > 27) { 
+      Serial2.read(); 
+    }
+
+    boolean packetFound = false;
+    while (Serial2.available() >= 9 && !packetFound) {
       if (Serial2.read() == 0x59 && Serial2.peek() == 0x59) {
         frame[0] = 0x59;
         frame[1] = Serial2.read(); 
@@ -120,13 +131,26 @@ void radarReaderTask(void * parameter) {
           int distanceCm = frame[2] + (frame[3] << 8);
           latestRadarValue = (float)distanceCm;
 
-          // Push the measurement onto the queue. 
-          // Wait up to 0 ticks if the queue is full (overwrite/drop old data)
           xQueueSend(radarQueue, &distanceCm, 0);
+          
+          packetFound = true; // Break the while loop so we don't process more packets right now
         }
       }
     }
-    // Quick pause to prevent starving the CPU core
+    vTaskDelay(pdMS_TO_TICKS(LIDAR_SAMPLING_RATE)); 
+  }
+}
+
+/**
+ * @brief Artificial radar task for testing without hardware.
+ *
+ * @param xTimer the timer handle.
+ */
+void artificialRadarTask(void * parameter) {
+  for(;;) {
+    // Simulate a random distance measurement between 50 and 100 cm
+    int simulatedDistance = random(50, 100);
+    xQueueSend(radarQueue, &simulatedDistance, 0);
     vTaskDelay(pdMS_TO_TICKS(LIDAR_SAMPLING_RATE)); 
   }
 }
@@ -161,7 +185,7 @@ void radarProcessingTask(void * parameter) {
           // EXECUTE YOUR EXTERNAL LOOP TRIGGER HERE
           // Example: Wait for Camera task to finish, transmit data, etc.
           // For demonstration, simulating an execution delay:
-          vTaskDelay(pdMS_TO_TICKS(5000)); // Simulating a 5-second capture cycle
+          vTaskDelay(pdMS_TO_TICKS(8000)); // Simulating a 5-second capture cycle
           // ----------------================---------------------------------
 
           // Reset status values after the action loop completes
@@ -171,7 +195,7 @@ void radarProcessingTask(void * parameter) {
           Serial.println(">>> TRIGGER CLEARED: Action loop complete. <<<");
 
           // Clear out stale data that piled up in serial buffers before resuming
-          while(Serial2.available() > 0) { Serial2.read(); } 
+          // while(Serial2.available() > 0) { Serial2.read(); } 
           xQueueReset(radarQueue); 
 
           // Resume the radar reader task safely
@@ -191,15 +215,25 @@ void radarProcessingTask(void * parameter) {
       Serial.print(",Disruption_Timer_ms:");
       Serial.println(disruptionDurationMs);
     }
- 
-    // Force the internal RTC timer to wake us up in exactly LIDAR_SAMPLING_RATE MS
-    // (Macro requires microseconds: 1 ms = 1000 us)
-    esp_sleep_enable_timer_wakeup(LIDAR_SAMPLING_RATE * 999ULL);
-    Serial.flush(); // Cleanly flush logs out of the serial bus before power gates drop
+    // if (!loRaWANHandler.getLoraIsActive()) {
+    //   // If LoRaWAN is not active, we can afford to sleep more aggressively.
+    //   // This is a good place to put the device into a light sleep mode to save power.
+    //   // Force the internal RTC timer to wake us up in exactly LIDAR_SAMPLING_RATE MS
+    //   // (Macro requires microseconds: 1 ms = 1000 us)
+    //   esp_sleep_enable_timer_wakeup(LIDAR_SAMPLING_RATE * 950ULL);
+    //   // Serial.flush(); // Cleanly flush logs out of the serial bus before power gates drop
 
-    // Command the hardware layer into a low power light sleep state immediately.
-    // The CPU freezes here. RAM stays perfectly intact. 
-    esp_light_sleep_start();
+    //   // // Command the hardware layer into a low power light sleep state immediately.
+    //   // // The CPU freezes here. RAM stays perfectly intact. 
+    //   esp_light_sleep_start();
+    // }
+  }
+}
+
+void loraTask(void * parameter) {
+  for(;;) {
+    loRaWANHandler.loop();
+    vTaskDelay(pdMS_TO_TICKS(100)); // Adjust this delay as needed to balance responsiveness and CPU usage
   }
 }
 
@@ -211,6 +245,7 @@ void radarProcessingTask(void * parameter) {
  * of the loRaWANHander object during the initialization phase.
  */
 void setup() {
+  Serial.begin(115200);
   pinMode(TRIGGER_PIN, OUTPUT);
   pinMode(PIN_INCOMING_TRIGGER, INPUT_PULLDOWN);
   Serial.println("Initializing LoRaWAN Handler...");
@@ -220,17 +255,47 @@ void setup() {
 
   radarQueue = xQueueCreate(10, sizeof(int));
 
-  if (radarQueue != NULL) {
-    // 1. Create the Hardware Reading Task (Core 0)
-    xTaskCreatePinnedToCore(
-      radarReaderTask,
-      "RadarReader",
-      3072,
-      NULL,
-      2, // Slightly higher priority to ensure serial data is captured without drops
-      &radarReaderTaskHandle,
-      0
+  if (testMode) {
+      Serial.println("Test mode enabled: Starting artificial radar task...");
+      fakeInterruptTimer = xTimerCreate(
+      "4s_Timer",              
+      pdMS_TO_TICKS(4000),    
+      pdTRUE,
+      (void *)0,                
+      fakeInterruptCallback     
     );
+
+    // Start the timer
+    if (fakeInterruptTimer != NULL) {
+      xTimerStart(fakeInterruptTimer, 0);
+      Serial.println("4-second background timer started successfully.");
+  }
+  }
+
+  if (radarQueue != NULL) {
+    if (testMode) {
+      Serial.println("Creating Artificial Radar Task...");
+      xTaskCreatePinnedToCore(
+        artificialRadarTask,
+        "ArtificialRadar",
+        3072,
+        NULL,
+        2, // Slightly higher priority to ensure serial data is captured without drops
+        &radarReaderTaskHandle,
+        0
+      );
+    } else {
+      Serial.println("Creating Radar Reader Task...");
+      xTaskCreatePinnedToCore(
+        radarReaderTask,
+        "RadarReader",
+        3072,
+        NULL,
+        2, // Slightly higher priority to ensure serial data is captured without drops
+        &radarReaderTaskHandle,
+        0
+      );
+    }
 
     // 2. Create the Data Processing Task (Core 1)
     xTaskCreatePinnedToCore(
@@ -242,6 +307,16 @@ void setup() {
       &radarProcessingTaskHandle,
       1
     );
+
+    xTaskCreatePinnedToCore(
+      loraTask,
+      "LoRaTask",
+      4096,
+      NULL,
+      1, // Normal priority
+      NULL,
+      1
+    );
     
     Serial.println("Both FreeRTOS Radar Tasks Initialized.");
   } else {
@@ -251,23 +326,15 @@ void setup() {
 
   
 /**
- * @brief Continuously handles LoRaWAN events and maintains the connection.
- *
- * This function is repeatedly called in the main loop and delegates
- * processing to the LoRaWAN handler's loop method. It ensures that
- * LoRaWAN events are processed and the connection remains active.
+ * @brief Continuously handles interrupt events. Other tasks are pinned to specific cores. 
  */
 void loop()
 {
-  loRaWANHandler.loop();
-
   if (g_event_triggered) {
-        ALOG_I("External hardware trigger detected! Initiating LoRa Uplink...");
-        
+        ALOG_I("External hardware trigger detected! PIGEON DETECTED!...");
         // Reset the flag
         g_event_triggered = false;
-
-        // Force a LoRaWAN transmission
-        prepareTxFrame(1); // Prepare the frame on the desired port (e.g., 1)
-    }
+        pidgeonCounter+= 1.0; 
+  }
+  vTaskDelay(pdMS_TO_TICKS(100));
 }

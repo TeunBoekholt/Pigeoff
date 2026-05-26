@@ -23,87 +23,39 @@
 
 #define PREFS_NAMESPACE "appconfig"
 #define PREFS_MAGIC "magic"
-#define PREFS_MAGIC_VALUE 0x19660304
-#define PREFS_SLEEPTIME "sleeptime"
-#define PREFS_SLEEPTIME_DEFAULT_VALUE 1200000
-#define PREFS_SEND_DELAY "senddelay"
-#define PREFS_SEND_DELAY_DEFAULT_VALUE 0
+#define PREFS_MAGIC_VALUE 0x19660309
 #define PREFS_APP_EUI "appEui"
 #define PREFS_DEV_EUI "devEui"
 #define PREFS_APP_KEY "appKey"
 
-extern SSD1306Wire display;
+// extern SSD1306Wire display;
 
 LoRaWANHandler loRaWANHandler;
 
 // LORAWAN Settings /////////////////////////////////////////////////////////
 
 uint8_t appEui[8] = {0x5A, 0x11, 0x52, 0xC4, 0xEE, 0x0E, 0x69, 0x1D};
-uint8_t devEui[8] = {0x3E, 0x34, 0x93, 0xF7, 0x71, 0x70, 0xA4, 0x34};
-uint8_t appKey[16] = {0xFC, 0x20, 0x29, 0x4F, 0x8F, 0xB6, 0x18, 0x3A, 0xFA, 0x07, 0x35, 0x13, 0x66, 0xDE, 0x09, 0xA2};
+uint8_t devEui[8] = {0x3E, 0x34, 0x93, 0xF7, 0x71, 0x70, 0xA4, 0x35};
+uint8_t appKey[16] = {0xFC, 0x20, 0x29, 0x4F, 0x8F, 0xB6, 0x18, 0x3A, 0xFA, 0x07, 0x35, 0x13, 0x66, 0xDE, 0x09, 0xA3};
 uint8_t nwkSKey[16];
 uint8_t appSKey[16];
 uint32_t devAddr = 0;
-uint32_t appTxDutyCycle;
+uint32_t appTxDutyCycle = 30000; // send every 30 seconds!
+uint32_t sendDelay = 0;
 uint16_t userChannelsMask[6] = {0x00FF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000};
 
 LoRaMacRegion_t loraWanRegion = ACTIVE_REGION;
 DeviceClass_t loraWanClass = CLASS_A;
 
-bool overTheAirActivation = true;
+bool overTheAirActivation = false;
 bool loraWanAdr = true;
-bool isTxConfirmed = true;
+bool isTxConfirmed = false;
 uint8_t appPort = 2;
-uint8_t confirmedNbTrials = 4;
+uint8_t confirmedNbTrials = 1;
 
-// Downlink Handler /////////////////////////////////////////////////////////
-
-/**
- * @brief Handles inbound LoRaWAN downlink messages, processes their content, 
- *        and applies relevant actions such as updating sleep time and send delay.
- *
- * This function prints debug information about the downlink message, including 
- * its associated RX window, payload size, and port. It also checks for a specific 
- * command and value pattern in the payload and invokes appropriate setter methods 
- * for device parameters.
- *
- * @param mcpsIndication Pointer to a McpsIndication_t structure containing 
- *        information about the received message (buffer, buffer size, port, etc.).
- */
-void downLinkDataHandle(McpsIndication_t *mcpsIndication)
-{
-#if ALOG_LEVEL > 3
-  Serial.printf("DOWN +REV DATA:%s,RXSIZE %d,PORT %d\r\n", mcpsIndication->RxSlot ? "RXWIN2" : "RXWIN1", mcpsIndication->BufferSize, mcpsIndication->Port);
-  Serial.print("DOWN +REV DATA:");
-  for (uint8_t i = 0; i < mcpsIndication->BufferSize; i++)
-  {
-    Serial.printf("%02X", mcpsIndication->Buffer[i]);
-  }
-  Serial.println();
-#endif
-
-  if (mcpsIndication->BufferSize == 6 && mcpsIndication->Buffer[0] == 0x5A ) // 0x5A is the magic number
-  {
-    uint8_t command = mcpsIndication->Buffer[1];
-    uint32_t value = mcpsIndication->Buffer[2] << 24 | mcpsIndication->Buffer[3] << 16 | mcpsIndication->Buffer[4] << 8 | mcpsIndication->Buffer[5];
-
-    ALOG_D("DOWN value(HEX): %08X\n", value);
-    ALOG_D("DOWN value(DEC): %d\n\n", value);
-
-    switch (command)
-    {
-    case 0x01:
-      loRaWANHandler.setSleepTime(value);
-      break;
-    case 0x02:
-      loRaWANHandler.setSendDelay(value);
-      break;
-    default:
-      ALOG_D("Error: Unknown command");
-      break;
-    }
-  }
-}
+unsigned long lastTxTime = 0;
+const unsigned long txInterval = 30000; // Send data every 15 seconds
+bool loraIsActive = false;
 
 // LoRaWANHandler Class implementation //////////////////////////////////////
 
@@ -127,63 +79,27 @@ void LoRaWANHandler::initConfig(bool showConfig)
   if (magic != PREFS_MAGIC_VALUE || reconfigure)  
   {
     magic = PREFS_MAGIC_VALUE;
-    appTxDutyCycle = PREFS_SLEEPTIME_DEFAULT_VALUE;
-    sendDelay = PREFS_SEND_DELAY_DEFAULT_VALUE;
+    appTxDutyCycle = 30000;
 
-    if ( reconfigure )
-    {
-      display.clear();
-      display.setFont(ArialMT_Plain_16);
-      display.setTextAlignment(TEXT_ALIGN_CENTER);
-      display.clear();
-      display.drawString(display.getWidth() / 2, display.getHeight() / 2, "RECONFIGURE");
-      display.display();
-      delay(2000);
-    }
-
-// #ifdef CREATE_DEV_EUI_RANDOM
-//     for (int i = 0; i < 8; i++)
-//     {
-//       devEui[i] = esp_random() & 0xFF;
-//     }
-// #endif 
-
-// #ifdef CREATE_DEV_EUI_CHIPID
-//     uint64_t chipId = ESP.getEfuseMac();
-//     for (int i = 0; i < 8; i++)
-//     {
-//       devEui[i] = *(((uint8_t *)&chipId) + (7-i)) & 0xFF;
-//     }
-// #endif
     preferences.putUInt(PREFS_MAGIC, magic);
-    preferences.putUInt(PREFS_SLEEPTIME, appTxDutyCycle);
-    preferences.putUInt(PREFS_SEND_DELAY, sendDelay);
     preferences.putBytes(PREFS_APP_EUI, appEui, 8);
     preferences.putBytes(PREFS_DEV_EUI, devEui, 8);
     preferences.putBytes(PREFS_APP_KEY, appKey, 16);
   }
   else
   {
-    appTxDutyCycle = preferences.getUInt(PREFS_SLEEPTIME, PREFS_SLEEPTIME_DEFAULT_VALUE);
-    sendDelay = preferences.getUInt(PREFS_SEND_DELAY, PREFS_SEND_DELAY_DEFAULT_VALUE);
     preferences.getBytes(PREFS_APP_EUI, appEui, 8);
     preferences.getBytes(PREFS_DEV_EUI, devEui, 8);
     preferences.getBytes(PREFS_APP_KEY, appKey, 16);
   }
   preferences.end();
 
-#ifdef DEVELOPMENT_MODE
-#ifdef DEVELOPMENT_SLEEPTIME_VALUE
-  setSleepTime(DEVELOPMENT_SLEEPTIME_VALUE);
-#endif
-#endif
-
   if (showConfig)
   {
     ALOG_I("AppConfig loaded.");
     ALOG_NL();
     ALOG_D("Magic: %08x", magic);
-    ALOG_D("sleep time: %dms", appTxDutyCycle);
+    ALOG_D("duty cycle: %dms", appTxDutyCycle);
     ALOG_D("send delay: %dms", sendDelay);
     ALOG_NL();
     printHex((char *)"AppEUI/JoinEUI", appEui, 8);
@@ -193,33 +109,10 @@ void LoRaWANHandler::initConfig(bool showConfig)
   }
 }
 
-void LoRaWANHandler::setSleepTime(uint32_t _sleepTime)
-{
-  Preferences preferences;
-  preferences.begin(PREFS_NAMESPACE, false);
-  preferences.putUInt(PREFS_SLEEPTIME, _sleepTime);
-  preferences.end();
-  appTxDutyCycle = _sleepTime;
-}
-
-void LoRaWANHandler::setSendDelay(uint32_t _sendDelay)
-{
-  Preferences preferences;
-  preferences.begin(PREFS_NAMESPACE, false);
-  preferences.putUInt(PREFS_SEND_DELAY, _sendDelay);
-  preferences.end();
-  sendDelay = _sendDelay;
-}
-
 void LoRaWANHandler::setup()
 {
   pinMode(GPIO_NUM_0, INPUT_PULLUP);
   pinMode(Vext, OUTPUT);
-
-#ifdef DEVELOPMENT_MODE
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, HIGH);
-#endif
 
   digitalWrite(Vext, LOW);
   Serial.begin(115200);
@@ -228,7 +121,7 @@ void LoRaWANHandler::setup()
 
   if (resetReason == ESP_RST_POWERON || resetReason == ESP_RST_EXT)
   {
-    LoRaWAN.displayMcuInit();
+    // LoRaWAN.displayMcuInit();
     delay(5000);
     Serial.println("\n\n\nLoRaWAN - Version " APP_VERSION );
     Serial.println("Build time : " __DATE__ " " __TIME__);
@@ -252,67 +145,48 @@ void LoRaWANHandler::setup()
     initConfig(false);
   }
 
-#ifdef DEVELOPMENT_MODE
-  delay(50);
-  digitalWrite(LED_BUILTIN, LOW);
-#endif
-
   Mcu.begin(HELTEC_BOARD, SLOW_CLK_TPYE);
 }
 
-void LoRaWANHandler::loop()
-{
-  switch (deviceState)
+void LoRaWANHandler::loop() {
+  switch(deviceState)
   {
-  case DEVICE_STATE_INIT:
-  {
-    LoRaWAN.init(loraWanClass, loraWanRegion);
-    LoRaWAN.setDefaultDR(3);
-    break;
-  }
-  case DEVICE_STATE_JOIN:
-  {
-    LoRaWAN.displayJoining();
-    LoRaWAN.join();
-    break;
-  }
-  case DEVICE_STATE_SEND:
-  {
-    prepareTxFrame(appPort);
-    if (resetReason == ESP_RST_POWERON || resetReason == ESP_RST_EXT)
-    {
-      LoRaWAN.displaySending();
-    }
-    LoRaWAN.send();
-    deviceState = DEVICE_STATE_CYCLE;
-    break;
-  }
-  case DEVICE_STATE_CYCLE:
-  {
-    txDutyCycleTime = appTxDutyCycle + randr(-APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND);
-    LoRaWAN.cycle(txDutyCycleTime);
-    if (resetReason == ESP_RST_POWERON || resetReason == ESP_RST_EXT)
-    {
-      display.clear();
-      display.setFont(ArialMT_Plain_16);
-      display.setTextAlignment(TEXT_ALIGN_CENTER);
-      display.clear();
-      display.drawString(display.getWidth() / 2, display.getHeight() / 2, "DEEP SLEEP");
-      display.display();
-    }
-    deviceState = DEVICE_STATE_SLEEP;
-    break;
-  }
-  case DEVICE_STATE_SLEEP:
-  {
-    LoRaWAN.sleep(loraWanClass);
-    break;
-  }
-  default:
-  {
-    deviceState = DEVICE_STATE_INIT;
-    break;
-  }
+    case DEVICE_STATE_INIT:
+      LoRaWAN.init(loraWanClass, loraWanRegion);
+      deviceState = DEVICE_STATE_JOIN;
+      break;
+
+    case DEVICE_STATE_JOIN:
+      loraIsActive = true;
+      LoRaWAN.join();
+      break;
+
+    case DEVICE_STATE_SEND:
+      loraIsActive = true;
+      prepareTxFrame(appPort);
+      LoRaWAN.send();
+      lastTxTime = millis(); // Record the exact time we sent a packet
+      deviceState = DEVICE_STATE_CYCLE;
+      break;
+
+    case DEVICE_STATE_CYCLE:
+      // Instead of letting Heltec handle the timer, we bypass it
+      deviceState = DEVICE_STATE_SLEEP;
+      break;
+
+    case DEVICE_STATE_SLEEP:
+      Mcu.timerhandler();
+	    Radio.IrqProcess();
+      if (loraIsActive && (millis() - lastTxTime >= 8000)) {
+        loraIsActive = false;
+      }
+       if (millis() - lastTxTime >= txInterval) {
+        deviceState = DEVICE_STATE_SEND;
+      }
+      break;
+    default:
+      deviceState = DEVICE_STATE_INIT;
+      break;
   }
 }
 
@@ -324,4 +198,9 @@ uint32_t LoRaWANHandler::getSleepTime()
 uint32_t LoRaWANHandler::getSendDelay()
 {
   return sendDelay;
+}
+
+bool LoRaWANHandler::getLoraIsActive()
+{
+  return loraIsActive;
 }

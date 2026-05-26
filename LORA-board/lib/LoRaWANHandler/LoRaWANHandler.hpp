@@ -43,7 +43,7 @@ class LoRaWANHandler
     uint32_t magic;
     uint32_t sendDelay;
     esp_reset_reason_t resetReason;
-    bool reconfigure;
+    bool reconfigure = true;
 
     void printHex(char *label, uint8_t *buffer, int length);
     void initConfig(bool showConfig);
@@ -54,6 +54,7 @@ class LoRaWANHandler
 
     uint32_t getSleepTime();
     uint32_t getSendDelay();
+    bool getLoraIsActive();
 
     void setSleepTime(uint32_t _sleepTime);
     void setSendDelay(uint32_t _sendDelay);
