@@ -1,8 +1,19 @@
 # PigeOff: Safeguarding Monuments with Smart IoT Deterrents
 
-Ancient monuments face a modern, highly corrosive threat: urban pigeon populations. In cities like Rome, the issue extends beyond aesthetics—the high acidity of pigeon droppings physically degrades historical stone, marble, and architecture over time. 
+## Problem Description
+Capital cities – like Rome – host a great number of monuments (statues, building facades, etc.) which poses local authorities the problem of pigeon infestation. These birds are abundant and often settle down on a monument, where they will stay for a while. Not only can their presence hinder the aesthetics of such a monument, but before a pigeon leaves they are also known to deface the monument by excrementing. These acidic droppings further ruin the aesthetics of statues, and can also damage their structural integrity.
 
-**PigeOff** is an innovative IoT solution designed to preserve urban monuments and public spaces. By integrating smart sensing, localized deterrents, and long-range connectivity, the system offers an automated, data-driven approach to managing pigeon populations in smart city environments.
+Therefore it is essential that local authorities are equipped with proper means to combat these pigeons, of course in an animal-friendly, sustainable and cost-effective manner. That is where our system, **PigeOff**, comes in. It is an Urban Pigeon Deterrent System, designed to scare off pigeons nestling on Rome’s monuments. PigeOff is an innovative IoT solution designed to preserve urban monuments and public spaces. By integrating smart sensing, localized deterrents, and long-range connectivity, the system offers an automated, data-driven approach to managing pigeon populations in smart city environments.
+
+## Existing Methods
+Currently municipalities in Rome already use several methods to go about driving pigeons away from their monuments. 
+
+The most common method is the use of netting / spikes, or other mechanical means of deterrence. These methods are quite functional, but the defense mechanisms are often very visible and can infringe upon the aesthetics of the monuments. 
+	Another technique often used is the application of optical gel to the monuments. This gel is perceived by the pigeons as if it was fire and therefore they scare and leave the premises. However, the gel is a chemical substance and can damage the structures – even though it may still be less than the damage done by the pigeon droppings.
+	Lastly, there have even been occasions where the municipality hired urban hawkers; professionals who let loose hawks which deter all types of malevolent birds in the vicinity. Of course, this method is very costly, and therefore undesirable.  
+
+PigeOff addresses all the above limitations by allowing for invisible placements on statues, due to its small format. Moreover, the device would not damage the structure in any way and it is also cost effective.
+
 
 ---
 
@@ -125,5 +136,14 @@ Documentation and progress reports for the PigeOff system are cataloged below:
 | :--- | :--- | :--- |
 | **1st Deliverable** | -- / -- / ---- | [📄 View Presentation](PigeOFF_presentation.pdf) |
 | **2nd Deliverable** | 10.04.2026 | [📄 View Presentation](PigeOFF_presentation.pdf) |
+| **3rd Deliverable** | 29.05.2026 | 
+
+---
+
+## Core Documents 
+
+**Concept** -> |[PigeOff – Concept.pdf](https://github.com/user-attachments/files/28297049/PigeOff.Concept.pdf)|
+**Design** -> | |
+**Evaluation** -> ||
 
 ---
