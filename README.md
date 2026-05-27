@@ -110,13 +110,18 @@ The following analysis questions could be tackled with this:
 
 **PigeOFF** deters pigeons but also allows us to perform analysis that can help us in future approaches to tackling the problem of pigeons in urban environments.
 
+## Measured Pigeon Activity
+After posting at a fountain statue at Piazza Vittorio Emanuel in Rome, we found there landed in one hour 20 pigeons on the statue and 6 other birds – this is be relevant, as our classifier is not strong enough to distinghuish between pigeons and other birds. These pigeons stayed on the statue for averagely 16.3 seconds. These pigeon observations were made between 11:00 and 12:00 in the morning. This alligns with the strict daily scheduels pigeons adhere to. Namely, on another occasion we posted at another monument in Rome, but to no avail – no pigeon landed there for an entire hour, even though there were plenty of specimen present in the near vicinity. This again alligns with pigeons' daily schedules, as they often go back to foraging and feeding after their midday rest. 
+
 ## System Performance
 
-| Distance | Lidar FN | Lidar FP | Camera FN | Camera FN | Overall FN | Overall FP
-| :--- | :--- | :--- |:--- |:--- |:--- |:--- |
-| 20 | :--- | :--- |:--- |:--- |:--- |:--- |
-| 40 | :--- | :--- |:--- |:--- |:--- |:--- |
-| 80 | :--- | :--- |:--- |:--- |:--- |:--- |
+| Distance | Lidar FN | Lidar FP | Camera FN | Camera FP | LiDAR F1 | Camera F1
+| :--- | :--- | :--- |:--- |:--- |:--- |:--- 
+| 20 | 0% | 20% | 10% | 0% | 88.89% | 94.74%
+| 40 | 10% | 0% | 40% | 0% | 94.74% | 75.00%
+| 80 | 30% | 0% | 60% | 0% | 82.35% | 57.14%
+
+
 
 ## Team Members
 
