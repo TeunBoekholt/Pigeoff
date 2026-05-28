@@ -195,9 +195,9 @@ This whole sistem at work can be seen in the following picture, in which we can 
 
 |---  | Energy consumption 
 | :--- | :---
-|Average short range (40cm) | 245 mW
-|Average long range (80cm) | 283 mW
-|Average outdoor range (more then 300cm) | > 450 mW
+|Light sleep | 46 mW
+|Active | 204-220 mW
+|LoRA transmissions| > 800 mW
 
 <p align="center">
   <img src="/img/heltec-energy-updated-yes-disruption-yes-pigeon.PNG" width="900">
