@@ -215,7 +215,10 @@ Now that we have evaluated the power consumption of all the parts of the system 
 * we assume to use a radar sensor instead of the LiDAR one, always active;
 * the used battery will have to keep $\Delta V =5 V$.
 
-Said so, we calculated the 
+Said so, we calculated the following energy consumptions per hour:
+* for the ESPCAM, on average one detection takes $\Delta t \sim 3 sec$, which gives us every 1h deep sleep for 3552 sec and 16 times active, giving us $\Delta E \sim 31,1 mWh$
+* for the theoretical radar sensor, always on, we have  $\Delta E \sim 0,4 mWh$
+* 
 <p align="center">
   <img src="/img/final-1.PNG" width="800">
   <br>
