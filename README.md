@@ -65,7 +65,15 @@ To simplify replication and maintenance, the physical wiring maps are structured
 
 ## ESP32 Classifier: Optimizing for the Constraint Matrix
 
-To prevent the power-hungry camera from draining the battery, the LiDAR sensor acts as a low-power trigger. When an object enters the detection threshold, the ESP32-CAM wakes up to run onboard image classification. Two model iterations were tested to find the optimal balance between accuracy and dataset constraints.
+To prevent the power-hungry camera from draining the battery, the LiDAR sensor acts as a low-power trigger. When an object enters the detection threshold, the ESP32-CAM wakes up to run onboard image classification. Two model iterations were tested to find the optimal balance between accuracy and dataset constraints. 
+
+At first we tried training a model using a dataset consisting of colored images with a resolution of 160x160. However, it quickly became apparant that this would be too taxing for the ESP-cam, and thus we scaled down all images to 96x96 and transformed them into grayscale, drastically reducing the number of input features for our classifier. This decision was supported by our assumption that statues (the background of the images) would be white and that in relation to that the pigeons would be black. 
+
+Initially a more powerful model was trained (**MobileNetV1 (96x96 image size, 0.25 alpha scaling)**) on a more complex dataset we found on [Roboflow]([url](https://universe.roboflow.com/pigeon-sfe5r/pigeon-detection-6ompk/dataset/6/download)). After training and testing this dataset, we found out that the MobileNet classifier was too heavy to be run on the ESP-cam. 
+
+Therefore, we decided to scale down the model to a single layer Convolutional Neural Network followed by a dense layer for classification. This approach indeed led to a model that was a lot more demaning for the ESP-cam's RAM. However, we noticed that the MobileNetV1 had a lower flash usage than our small handcrafted model. Reason for this is that we only use one max-pooling layer, followed by a flatten layer which connects one-to-one to our dense layer. This means that there are a lot of connections, and thus weights, between this flatten layer and the dense layer, leading to a larger amount of model parameters that have to be stored on the device. The MobileNetV1 does not suffer from this issue since it has clever mechanisms in place that circumvent the one-to-one connections by using a kind of averaging. Even though the flash usage was higher, the model still fit on the ESP-cam and because the RAM usage was significantly lower we could run it without issue.
+
+Since the smaller classifier was less powerful and we were now working with the assumption of white backgrounds and black pigeons we also decided to swap to a different dataset. As you can see below this dataset consisted mostly of black pigeon stillhouettes against white backgrounds and as negative examples we showed it either completely white backgrounds or the stilhouettes of branches and leaves. Although the size of the dataset was only 60 images, we used a built-in feature in Edge Impulse to artificially increase the amount of training data (by rescaling, mirroring the same image a few times), in order to still have a sufficiently large dataset. Some more information and figures on the model performances can be found below.
 
 ### Model Iteration 1: MobileNetV1 Transfer Learning
 Using a robust dataset processed via **Roboflow**, we trained a **MobileNetV1 (96x96 image size, 0.25 alpha scaling)** model inside **Edge Impulse**. 
@@ -84,6 +92,17 @@ As a lean alternative, a specialized handcrafted dataset and model architecture 
 * **Characteristics:** Rapid training time, optimized strictly for targeted landmark profiles.
 
 ![Classifier 2](img/classifier2.png)
+
+## ESP-cam Code
+The ESP-cam board was solely used to wake up once it receives a trigger signal from the ESP32-heltec board, take a picture, run the local classifier, and then based on the result send a signal back (in case a pigeon was detected) or do nothing. After this the ESP-cam goes back into deep sleep to reduce energy consumption.
+
+All  the logic on the ESP-cam board is run inside the setup() loop. This is done because we basically put the board into sleep mode after every inference loop, so it runs its setup() loop once and then goes back to sleep. 
+
+We found the camera had some issues running the classification right after waking up compared to when it was just running constantly. In the end we attributed this to the fact that when the ESP-cam wakes up the camera needs to stabilize, e.g. the first few frames are otherwise just pure white because the auto-exposure hasn't adjusted yet. To fix this, we delayed the camera about 1 second before taking a picture to run the inference. During this one second the ESP-cam takes three pictures in rapid succession and flushes them, as to stabilize the auto-exposure. 
+
+After taking the image, it is first pre-processed before passing it to the local classifier. The pre-processing step is fairly simple, as in that it only turns pixels to full black if their grayscale value is below a certain threshold – otherwise the pixel is turned to white. We dod this as to make the image to be classified look as much like the training data the model has seen as possible. Some examples of what these transformations look like can be seen below (note: these are simulation images, they were not taken by the ESP-cam). 
+
+The classifier was run locally by importing the library from Edge Impulse after training. The local classifier outputs a confidence score of seeing a pigeon. If it is above the threshold of 0.6 we put a boolean value to true and the ESP-cam is instructed to pull its response pin to HIGH for one second, in order to give the ESP32-heltec time to receive the signal. 
 
 ---
 
@@ -129,7 +148,7 @@ After posting at a fountain statue at Piazza Vittorio Emanuel in Rome, we found 
 | :--- | :--- | :--- |
 | **Anja Škrlj** | 2285543 | [LinkedIn](https://www.linkedin.com/in/anja-škrlj-13aa852a1) |
 | **Filippo Zanei** | 2285059 | [LinkedIn](https://www.linkedin.com/in/filippozanei/) |
-| **Teun Boekholt** | 000000 | [LinkedIn](https://www.linkedin.com/in/teun-boekholt-a41205255/) |
+| **Teun Boekholt** | 2284223 | [LinkedIn](https://www.linkedin.com/in/teun-boekholt-a41205255/) |
 
 ---
 
