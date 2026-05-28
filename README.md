@@ -174,6 +174,13 @@ In the following image we can see the energy consumption of the ESPCAM during th
 </p>
 
 ### Energy consumption of the LiDAR
+From our experiments, we found out that the energy consumption of the LiDAR sensor is highly dependent on the distance it is measuring, as we can see in the following table and image. Considering that this sensor should frequently be up to act as a switch for the whole system, and moreover work in an outdoor environment characterized by long distances when nothing is detected, we would not suggest it as the optimal solution for a potential final product, although we decided to use it for the purpouse of implementing the sleeping routines.
+
+|---  | Energy consumption 
+| :--- | :---
+|Average short range (40cm) | 245 mW
+|Average long range (80cm) | 283 mW
+|Average outdoor range (more then 300cm) | > 450 mW
 
 <p align="center">
   <img src="/img/power_consumption_lidar.PNG" width="800">
