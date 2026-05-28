@@ -147,10 +147,14 @@ After posting at a fountain statue at Piazza Vittorio Emanuel in Rome, we found 
 | 40 | 10% | 0% | 40% | 0% | 94.74% | 75.00%
 | 80 | 30% | 0% | 60% | 0% | 82.35% | 57.14%
 
-## Eneargy consumption
+## Energy consumption
 In order to achieve the goal of a 7-days operation time via battery, we implemented different sleeping routines and measured the energy consumption of the whole system to calculate the optimal battery capacity to power our detecting system. Since the ultrasound actuator to scary the pigeons was not implemented, it was not considered in the energy calculations.
 
 *NOTE:* in our original idea, we wanted to use a radar movement sensor (LD2410S), though for home smart appliances, to operate as the switch to turn awake our system if any movement is detected. This sensor was chosen due to its theoretical little energy consumption, but at the end we where not able to implement it due to shipment issues (2 months after the order, the sensor is still in China). For this reason we implemented the switch part using a LiDAR sensor, kindly provided by the professor, which we set it up to work as a movement sensor by turning on our system when the distance measure is distrupted under a certain value for more then 4s straight. Although the LiDAR worked perfectly as this constrained movement sensor, it was not a valuable alternative for the radar sensor as its energy consumption is much higher then the radar one and is dependent on the distance it is measuring, making it not ideal for a set up that has to stay outside. For this reason measures taken from the LiDAR sensor are reported but not considered in the calculation of the ideal battery size for the final product, as it should implement the radar instead, which will be considered using the theoretical data reported in its [manual](https://www.tinytronics.nl/product_files/006002_HLK-LD2410S_datasheet.pdf).
+
+In the following discussion all the measured data were obtained via direct measurement with a INA219 powered separately with a ESP32, which also streamed the data to a pc via usb, while all the theoretical calculations are done using data from the manual and the formula for the power:
+
+$$ P = i \cdot V. $$
 
 <p align="center">
   <img src="/img/demo-pigeon-espcam-power-measures.PNG" width="800">
