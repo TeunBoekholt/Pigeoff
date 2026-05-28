@@ -166,11 +166,35 @@ $$ P = i \cdot V. $$
 
 ### Energy consumption of the LiDAR
 
+<p align="center">
+  <img src="/img/power_consumption_lidar.PNG" width="800">
+  <br>
+  <em>Energy consumption of the LiDAR sensor, where is clearly visible the high energy cost of the instrument and the difference between long range (high energy consumption) and short range (low energy consumption) distance measures.</em>
+</p>
+
 ### Energy consumption of the Heltec ESP32 v3
+
+<p align="center">
+  <img src="/img/heltec-energy-updated-yes-disruption-yes-pigeon.PNG" width="900">
+  <br>
+  <em>Energy consumption of the ESP32 while showing an image of a pigeon to simulate the environment and activate the cycle LiDAR + ESPCAM inference.</em>
+</p>
 
 ### Theoretical consumtion of the radar movement sensor
 
 ### Conclusions
+
+<p align="center">
+  <img src="/img/final-1.PNG" width="800">
+  <br>
+  <em>Energy consumption of the ESPCAM and the ESP32 fully operating, with visible peaks when the ESPCAM is activated.</em>
+</p>
+
+<p align="center">
+  <img src="/img/final-2.PNG" width="800">
+  <br>
+  <em>Energy consumption of the ESPCAM and the ESP32 fully operating, with visible peaks when the ESPCAM is activated.</em>
+</p>
 
 ## Team Members
 
