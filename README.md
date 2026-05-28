@@ -208,7 +208,14 @@ This whole sistem at work can be seen in the following picture, in which we can 
 ### Theoretical consumtion of the radar movement sensor
 From the nominal data present in the manual of the LD2410S radar sensor of our choice, it appears that is operating on $\Delta V = 3.3V$ and with typical current of $i = 0,12 mA$, which gives us a theoretical power consumption around $P_{theo} \sim 0,396 mW$.
 ### Conclusions
+Now that we have evaluated the power consumption of all the parts of the system we can do an extimation of the total energy required by it to run ideally for 7 days. In order to do so, we will work under the following assumptions, that will make us do an upperlimit extimation, which should guarantee the performance of our PigeOff setup:
+* we assume that every hour the system is activated 16 times (due to our observations in peak pigeon activity time);
+* further more, we assume that each time a pigeon is detected,
+* we assume that it will work also during night (although we did not test the ESPCAM at night);
+* we assume to use a radar sensor instead of the LiDAR one, always active;
+* the used battery will have to keep $\Delta V =5 V$.
 
+Said so, we calculated the 
 <p align="center">
   <img src="/img/final-1.PNG" width="800">
   <br>
