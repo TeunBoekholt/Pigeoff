@@ -195,9 +195,14 @@ This whole sistem at work can be seen in the following picture, in which we can 
 
 |---  | Energy consumption 
 | :--- | :---
-|Light sleep | 46 mW
-|Active | 204-220 mW
+|Light sleep mode| 46 mW
+|Active mode | 204-220 mW
 |LoRA transmissions| > 800 mW
+
+In order to extimate the total energy consuption of the system, we have done the following approximations based on the averages from the data:
+* on average, the routine after a trigger from the LiDAR takes $\Delta t \sim 9 s$ while it consumes $\Delta E \sim 0,54 mWh$
+* on average, the systems stays in sleeping mode for $\Delta t \sim 0,9 s$, while stays in active mode while checking the LiDAR sensor data for $\Delta t \sim 1 s$;
+* assuming that all the time the ESP32 is not in the detection routine is a continuous cycle between checking the LiDAR and sleeping, we can then determine that $\sim 52%$ of that time it is in active mode and the remain it is sleeping.
 
 <p align="center">
   <img src="/img/heltec-energy-updated-yes-disruption-yes-pigeon.PNG" width="900">
@@ -216,9 +221,11 @@ Now that we have evaluated the power consumption of all the parts of the system 
 * the used battery will have to keep $\Delta V =5 V$.
 
 Said so, we calculated the following energy consumptions per hour:
-* for the ESPCAM, on average one detection takes $\Delta t \sim 3 sec$, which gives us every 1h deep sleep for 3552 sec and 16 times active, giving us $\Delta E \sim 31,1 mWh$
+* for the ESPCAM, on average one detection takes $\Delta t \sim 3 sec$, which gives us every 1h deep sleep for $3552 s$ and $16$ times active, giving us $\Delta E \sim 31,1 mWh$
 * for the theoretical radar sensor, always on, we have  $\Delta E \sim 0,4 mWh$
-* 
+* with the considerations already written, we calculated for the ESP32 a power consumption of $\Delta E \sim 130,6 mWh$
+* obtaining a total energy consumption per hour of the system of $\Delta E_{T} \sim 162 mWh$
+
 <p align="center">
   <img src="/img/final-1.PNG" width="800">
   <br>
@@ -230,6 +237,11 @@ Said so, we calculated the following energy consumptions per hour:
   <br>
   <em>Energy consumption of the ESPCAM and the ESP32 fully operating, with visible peaks when the ESPCAM is activated.</em>
 </p>
+
+With this $\Delta E_{T}$ per hour extimation we can easily calculate the weekly maximum energy consumption
+$$ 162 (mWh) \cdot 24 \cdot 7 = 27225 (mWh)$$
+
+and thus the ideal battery capacity of $ 27225 (mWh) / 5V = 5445 mAh$, which is roughtly the capacity of a smartphone battery.
 
 ## Team Members
 
