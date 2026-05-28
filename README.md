@@ -159,10 +159,11 @@ $$ P = i \cdot V. $$
 ### Energy consumption of the ESPCam
 In the following image we can see the energy consumption of the ESPCAM during the [demo](https://youtu.be/5cjZkr73Wsk). We can clearly see the moments in which the ESP32 wakes up from deep sleep the ESPCAM board, which consumes as follows:
 
-|  | Measurements |
-|Average sleeping mode power | 25-27 mW|
-|Average energy consumption when pigeon is detected | 0,34 mWh |
-|Average energy consumption when pigeon is not detected | 0,23 mWh |
+|---  | Measurements 
+| :--- | :---
+|Average sleeping mode power | 25-27 mW
+|Average energy consumption when pigeon is detected | 0,34 mWh 
+|Average energy consumption when pigeon is not detected | 0,23 mWh 
 
 
 
