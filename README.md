@@ -156,11 +156,21 @@ In the following discussion all the measured data were obtained via direct measu
 
 $$ P = i \cdot V. $$
 
+### Energy consumption of the ESPCam
+
 <p align="center">
   <img src="/img/demo-pigeon-espcam-power-measures.PNG" width="800">
   <br>
   <em>Energy consumption of the ESPCAM during the DEMO, showing the difference between detection, not detection and sleeping mode power required by the CAM to operate and do the inference locally.</em>
 </p>
+
+### Energy consumption of the LiDAR
+
+### Energy consumption of the Heltec ESP32 v3
+
+### Theoretical consumtion of the radar movement sensor
+
+### Conclusions
 
 ## Team Members
 
