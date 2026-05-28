@@ -84,6 +84,7 @@ Using a robust dataset processed via **Roboflow**, we trained a **MobileNetV1 (9
 
 ![Classifier 1](img/classifier1.png)
 
+
 ### Model Iteration 2: Handcrafted Feature Extraction
 As a lean alternative, a specialized handcrafted dataset and model architecture were built directly in Edge Impulse to minimize processing overhead.
 
@@ -103,6 +104,12 @@ We found the camera had some issues running the classification right after wakin
 After taking the image, it is first pre-processed before passing it to the local classifier. The pre-processing step is fairly simple, as in that it only turns pixels to full black if their grayscale value is below a certain threshold – otherwise the pixel is turned to white. We dod this as to make the image to be classified look as much like the training data the model has seen as possible. Some examples of what these transformations look like can be seen below (note: these are simulation images, they were not taken by the ESP-cam). 
 
 The classifier was run locally by importing the library from Edge Impulse after training. The local classifier outputs a confidence score of seeing a pigeon. If it is above the threshold of 0.6 we put a boolean value to true and the ESP-cam is instructed to pull its response pin to HIGH for one second, in order to give the ESP32-heltec time to receive the signal. 
+
+<img width="96" height="96" alt="zoom_pigeon" src="https://github.com/user-attachments/assets/62864f57-3545-4126-945a-ec87639e0832" />
+<img width="96" height="96" alt="zoom_pigeon_bw" src="https://github.com/user-attachments/assets/a85d17da-ca6c-4832-bf71-376d3ad7c427" />
+<img width="96" height="96" alt="zoom_nopigeon" src="https://github.com/user-attachments/assets/8586953d-9b2c-440d-b7b6-a6d018efe9e0" />
+<img width="96" height="96" alt="zoom_nopigeon_bw" src="https://github.com/user-attachments/assets/f1253d1c-b64b-4fb1-ad8d-19d41e76564c" />
+
 
 ---
 
