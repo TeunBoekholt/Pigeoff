@@ -37,6 +37,13 @@ TaskHandle_t radarProcessingTaskHandle = NULL;
 
 extern SSD1306Wire display;
 
+// Command to set frame rate to 0 (Enables manual trigger mode)
+uint8_t TFMINI_TRIGGER_MODE[] = {0x5A, 0x06, 0x03, 0x00, 0x00, 0x63};
+// Command to save settings to the LiDAR's internal flash memory
+uint8_t TFMINI_SAVE_SETTINGS[] = {0x5A, 0x04, 0x11, 0x6F};
+// The command you send every time you want exactly ONE sample
+uint8_t TFMINI_TRIGGER_PULSE[] = {0x5A, 0x04, 0x04, 0x63};
+
 #define LORA_SEND_INTERVAL_MS 600000 // 10 minute
 #define TRIGGER_PIN 2
 #define PIN_INCOMING_TRIGGER 3
@@ -104,39 +111,53 @@ void prepareTxFrame(uint8_t port)
  */
 void radarReaderTask(void * parameter) {
   Serial2.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
+  delay(100); // Let the serial driver stabilize
+
+  // 1. TELL THE LIDAR TO GO TO SLEEP MODE IMMEDIATELY
+  Serial2.write(TFMINI_TRIGGER_MODE, sizeof(TFMINI_TRIGGER_MODE));
+  delay(10);
+  Serial2.write(TFMINI_SAVE_SETTINGS, sizeof(TFMINI_SAVE_SETTINGS));
+  delay(100); // Give the LiDAR's flash memory time to write
+  
+  // Clear any residual boot packets
+  while(Serial2.available() > 0) { Serial2.read(); }
+
   uint8_t frame[9];
 
   for(;;) {
-    // Clear stale data and avoid processing old packets!
-   while (Serial2.available() > 27) { 
-      Serial2.read(); 
-    }
+    // 2. TRIGGER A SINGLE MEASUREMENT: Wakes the laser up for one burst
+    Serial2.write(TFMINI_TRIGGER_PULSE, sizeof(TFMINI_TRIGGER_PULSE));
 
+    unsigned long startTime = millis();
     boolean packetFound = false;
-    while (Serial2.available() >= 9 && !packetFound) {
-      if (Serial2.read() == 0x59 && Serial2.peek() == 0x59) {
-        frame[0] = 0x59;
-        frame[1] = Serial2.read(); 
-        
-        for (int i = 2; i < 9; i++) {
-          frame[i] = Serial2.read();
-        }
 
-        uint8_t checksum = 0;
-        for (int i = 0; i < 8; i++) {
-          checksum += frame[i];
-        }
-
-        if (checksum == frame[8]) {
-          int distanceCm = frame[2] + (frame[3] << 8);
-          latestRadarValue = (float)distanceCm;
-
-          xQueueSend(radarQueue, &distanceCm, 0);
+    // 3. LISTEN FOR THE RESPONSE: Wait up to 50ms for the resulting frame
+    while ((millis() - startTime < 50) && !packetFound) {
+      if (Serial2.available() >= 9) {
+        if (Serial2.read() == 0x59 && Serial2.peek() == 0x59) {
+          frame[0] = 0x59;
+          frame[1] = Serial2.read(); 
           
-          packetFound = true; // Break the while loop so we don't process more packets right now
+          for (int i = 2; i < 9; i++) {
+            frame[i] = Serial2.read();
+          }
+
+          uint8_t checksum = 0;
+          for (int i = 0; i < 8; i++) { checksum += frame[i]; }
+
+          if (checksum == frame[8]) {
+            int distanceCm = frame[2] + (frame[3] << 8);
+            latestRadarValue = (float)distanceCm;
+            xQueueSend(radarQueue, &distanceCm, 0);
+            packetFound = true; 
+          }
         }
       }
+      vTaskDelay(pdMS_TO_TICKS(1)); // Yield briefly to avoid hogging core
     }
+
+    // 4. DEEP COOLDOWN: Both devices are now resting. 
+    // The LiDAR is in standby drawing minimal current; the ESP core is idle.
     vTaskDelay(pdMS_TO_TICKS(LIDAR_SAMPLING_RATE)); 
   }
 }
