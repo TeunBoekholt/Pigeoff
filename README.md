@@ -189,6 +189,15 @@ From our experiments, we found out that the energy consumption of the LiDAR sens
 </p>
 
 ### Energy consumption of the Heltec ESP32 v3
+In order to consume as little as possible and still detect the presence of pigeons, we operated the ESP32 in a light sleep mode, which turns on the LiDAR sensor every $\sim 1s$ to reduce its power consumption and turns on only when the LiDAR sensor detects the presence of an object for 4 times in a row. Then it wakes up the ESPCAM which takes a picture and runs locally the tinyML inference model to determine if the thing detected by the LiDAR is a pigeon or not. If it was a pigeon, the ESP32 counts it and sends an aggregated value of the number of pigeon detected via LoRAWAN every 60 seconds.
+
+This whole sistem at work can be seen in the following picture, in which we can clearly see the short peaks representing the activations of the LiDAR sensor by the ESP32 and the difference between the active and sleeping modes. The average power consumption of each phase is reported in the following table:
+
+|---  | Energy consumption 
+| :--- | :---
+|Average short range (40cm) | 245 mW
+|Average long range (80cm) | 283 mW
+|Average outdoor range (more then 300cm) | > 450 mW
 
 <p align="center">
   <img src="/img/heltec-energy-updated-yes-disruption-yes-pigeon.PNG" width="900">
@@ -197,7 +206,7 @@ From our experiments, we found out that the energy consumption of the LiDAR sens
 </p>
 
 ### Theoretical consumtion of the radar movement sensor
-
+From the nominal data present in the manual of the LD2410S radar sensor of our choice, it appears that is operating on $\Delta V = 3.3V$ and with typical current of $i = 0,12 mA$, which gives us a theoretical power consumption around $P_{theo} \sim 0,396 mW$.
 ### Conclusions
 
 <p align="center">
