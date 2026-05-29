@@ -248,7 +248,7 @@ $$ 169 (mWh) \cdot 24 \cdot 7 = 28472 (mWh)$$
 
 and thus the ideal battery capacity of $28472 (mWh) / 5V = 5694 mAh$, which is roughtly the capacity of a smartphone battery.
 
-##Conclusion and discussion
+## Conclusion and discussion
 In conclusion, we can say that our system is capable of detecting pigeons in time when one is presented, since the total operating time of the ESP32, which acts as the brain of the system, is $\Delta t \sim 9s$ which is $<16s$, that is the average time of stay of a pigeon on a statue following our observations. Moreover, considering the worst case scenario of having for a whole week peak pigeons activity for every hour of day and night, we calculated that the system can work potentially just using a normal size smartphone battery, making it doable in real life.
 
 Although, we have to say that the ESPCAM inference is far from optimal and reliable, since the best results have been obtained by keeping the reference image of the pigeon at only 20cm distance, and it cannot recognize clearly a pigeon if there isn't an high contrast environment, like having a white background and a dark pigeon. Said so, the system can be improved by using a larger model for the pigeon recognition, on the edge instead of locally in the ESPCAM, although this would require fast stransmission of the images via wifi which is very energy consuming.
