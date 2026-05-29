@@ -182,7 +182,7 @@ From our experiments, we found out that the energy consumption of the LiDAR sens
 
 |---  | Energy consumption 
 | :--- | :---
-|Average short range (40cm) | 245 mW
+|Average short range (<40cm) | 245 mW
 |Average long range (80cm) | 283 mW
 |Average outdoor range (more then 300cm) | > 450 mW
 
