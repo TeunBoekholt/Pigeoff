@@ -271,7 +271,7 @@ Documentation and progress reports for the PigeOff system are cataloged below:
 | :--- | :--- | :--- |
 | **1st Deliverable** | -- / -- / ---- | [📄 View Presentation](PigeOFF_presentation.pdf) |
 | **2nd Deliverable** | 10.04.2026 | [📄 View Presentation](PigeOFF_presentation.pdf) |
-| **3rd Deliverable** | 29.05.2026 | 
+| **3rd Deliverable** | 29.05.2026 | [📄 View Presentation](Final-Presentation.pdf) |
 
 ---
 
