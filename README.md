@@ -141,6 +141,10 @@ After posting at a fountain statue at Piazza Vittorio Emanuel in Rome, we found 
 
 ## System Performance
 
+The system performance that can be found below are based on a controlled test environment in which we tested our system under a few different conditions to find the optimal distance for our system to detect the presence of a pigeon. The experiments were performed by holding in front of the system 30 times a test object for every distance (90 samples in total) and seeing how the system would respond. The three objects were a photorealistic image of a pigeon, a branch and just nothing (a white sheet of paper to resemble a statue background).
+
+In the table below you can see that our LiDAR performed best on a range of 40cm, where it only once did not detect a pigeon correctly. However, the high false negative rate for the camera at this distance still leas us to conclude 20cm might be the optimal distance for the system placement. Here the LiDAR false positive rate is a bit higher, owing to the fact that at such close distances it sometimes picks up on branches, but the camera performs significantly better. If, however, in the future a system would be implemented with only LiDAR and no ESP-cam module, it is ideal to then place the system at 40cm.
+
 | Distance | Lidar FN | Lidar FP | Camera FN | Camera FP | LiDAR F1 | Camera F1
 | :--- | :--- | :--- |:--- |:--- |:--- |:--- 
 | 20 | 0% | 20% | 10% | 0% | 88.89% | 94.74%
