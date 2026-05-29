@@ -206,7 +206,7 @@ This whole sistem at work can be seen in the following picture, in which we can 
 In order to extimate the total energy consuption of the system, we have done the following approximations based on the averages from the data:
 * on average, the routine after a trigger from the LiDAR takes $\Delta t \sim 9 s$ while it consumes $\Delta E \sim 0,54 mWh$
 * on average, the systems stays in sleeping mode for $\Delta t \sim 0,9 s$, while stays in active mode while checking the LiDAR sensor data for $\Delta t \sim 1 s$;
-* assuming that all the time the ESP32 is not in the detection routine is a continuous cycle between checking the LiDAR and sleeping, we can then determine that $\sim 52%$ of that time it is in active mode and the remain it is sleeping.
+* assuming that all the time the ESP32 is not in the detection routine is a continuous cycle between checking the LiDAR and sleeping, we can then determine that $\sim 53$ % of that time it is in active mode and the remain it is sleeping.
 
 <p align="center">
   <img src="/img/heltec-energy-updated-yes-disruption-yes-pigeon.PNG" width="900">
