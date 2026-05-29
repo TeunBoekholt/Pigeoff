@@ -165,7 +165,7 @@ In the following image we can see the energy consumption of the ESPCAM during th
 
 |---  | Measurements 
 | :--- | :---
-|Average sleeping mode power | 25-27 mW
+|Average sleeping mode power | 26 mW
 |Average energy consumption when pigeon is detected | 0,34 mWh 
 |Average energy consumption when pigeon is not detected | 0,23 mWh 
 
@@ -225,10 +225,10 @@ Now that we have evaluated the power consumption of all the parts of the system 
 * the used battery will have to keep $\Delta V =5 V$.
 
 Said so, we calculated the following energy consumptions per hour:
-* for the ESPCAM, on average one detection takes $\Delta t \sim 3 s$, which gives us every 1h deep sleep for $3552 s$ and $16$ times active, giving us $\Delta E \sim 31,1 mWh$
+* for the ESPCAM, on average one detection takes $\Delta t \sim 3 s$, which gives us every 1h deep sleep for $3552 s$ and $16$ times active, giving us $\Delta E \sim 34,3 mWh$
 * for the theoretical radar sensor, always on, we have  $\Delta E \sim 0,4 mWh$
-* with the considerations already written, we calculated for the ESP32 a power consumption of $\Delta E \sim 130,6 mWh$
-* obtaining a total energy consumption per hour of the system of $\Delta E_{T} \sim 162 mWh$
+* with the considerations already written, we calculated for the ESP32 a power consumption of $\Delta E \sim 134,8 mWh$
+* obtaining a total energy consumption per hour of the system of $\Delta E_{T} \sim 169 mWh$
 
 <p align="center">
   <img src="/img/final-1.PNG" width="800">
@@ -244,9 +244,9 @@ Said so, we calculated the following energy consumptions per hour:
 
 With this $\Delta E_{T}$ per hour extimation we can easily calculate the weekly maximum energy consumption
 
-$$ 162 (mWh) \cdot 24 \cdot 7 = 27225 (mWh)$$
+$$ 169 (mWh) \cdot 24 \cdot 7 = 28472 (mWh)$$
 
-and thus the ideal battery capacity of $27225 (mWh) / 5V = 5445 mAh$, which is roughtly the capacity of a smartphone battery.
+and thus the ideal battery capacity of $28472 (mWh) / 5V = 5694 mAh$, which is roughtly the capacity of a smartphone battery.
 
 ## Team Members
 
